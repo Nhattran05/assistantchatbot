@@ -1,0 +1,49 @@
+llm:
+  default_provider: "openai"
+  default_model: "gpt-4o-mini"
+  providers:
+    openai:
+      model: "gpt-4o-mini"
+    anthropic:
+      model: "claude-3-haiku-20240307"
+    google:
+      model: "gemini-1.5-flash"
+    megaai:
+      model: "openai-gpt-oss-120b"
+
+agents:
+  researcher:
+    llm_provider: "openai"
+    llm_model: "gpt-4o-mini"
+    tools: []
+  role_identification:
+    llm_provider: "mega_llm"
+    llm_model: "openai-gpt-oss-120b"
+  text_normalization:
+    llm_provider: "mega_llm"
+    llm_model: "openai-gpt-oss-120b"
+  form_filling:
+    llm_provider: "mega_llm"
+    llm_model: "openai-gpt-oss-120b"
+  document_export:
+    llm_provider: "mega_llm"
+    llm_model: "openai-gpt-oss-120b"
+
+workflows:
+  default: "default_workflow"
+  default_workflow:
+    agents: ["researcher"]
+    checkpointer: false
+  form_docx_workflow:
+    agents: ["text_normalization", "form_filling", "document_export"]
+    checkpointer: false
+  conversation_workflow:
+    agents: ["role_identification", "text_normalization", "form_filling", "document_export"]
+    checkpointer: false
+
+models:
+  asr_path: "C:\\Users\\kans\\.cache\\huggingface\\hub\\models--nvidia--parakeet-ctc-0.6b-vi\\snapshots\\b0493142b49458810324e3db8be9e8e07b4ebc17\\parakeet-ctc-0.6b-vi.nemo"
+  diarization_path: "D:\\nvidia parakeet\\diar_streaming_sortformer_4spk-v2.nemo"
+
+database:
+  type: "memory"

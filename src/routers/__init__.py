@@ -1,0 +1,16 @@
+from fastapi import FastAPI
+
+
+def register_routers(app: FastAPI) -> None:
+    from src.routers.chat import router as chat_router
+    from src.routers.conversation import router as conversation_router
+    from src.routers.test_llm import router as test_llm_router
+    from src.routers.test_workflow import router as test_workflow_router
+
+    app.include_router(chat_router)
+    app.include_router(test_llm_router)
+    app.include_router(test_workflow_router)
+    app.include_router(conversation_router)
+    # Thêm router khác ở đây:
+    # from src.routers.my_router import router as my_router
+    # app.include_router(my_router)
