@@ -11,6 +11,7 @@ from typing_extensions import TypedDict
 
 from src.core.agents.base import BaseAgent
 from src.core.llm.factory import LLMFactory
+from src.core.prompts.factory import PromptFactory
 from src.core.tools.docx_export_tool import DocxExportTool
 
 _FIELD_LABELS: dict[str, str] = {
@@ -75,40 +76,10 @@ class DocumentExportAgent(BaseAgent):
 
     async def ainvoke(self, state: dict) -> dict:
         formatted_content = _format_form(state.get("filled_form", "{}"))
+        system_prompt = PromptFactory.render("document_export")
 
         init_messages = [
-            SystemMessage(
-                content=(
-                    "You are a document export assistant. "
-                    "Call the docx_export tool with the provided content to generate the DOCX file. "
-                    "Do not modify the content."
-                    """You should fill in this form .md form:
-                    # PHIẾU KHÁM BỆNH
-                    ## I. Thông tin hành chính
-                    * **Họ và tên người bệnh :** ........................................................................
-                    * **Số điện thoại :** ................................................................................
-                    * **Mã số Bảo hiểm Y tế :** ................................................
-
-                    ## II. Thông tin lâm sàng
-                    * **Tiền sử bệnh lý :** * [Ghi chú các bệnh lý đã mắc, dị ứng thuốc, phẫu thuật trước đây...]
-                    * **Triệu chứng hiện tại :** * [Mô tả các triệu chứng cơ năng và thực thể người bệnh đang gặp phải...]
-
-                    ## III. Chẩn đoán và Hướng xử trí
-                    * **Chẩn đoán ban đầu :** * [Ghi rõ chẩn đoán sơ bộ dựa trên triệu chứng và tiền sử...]
-                    * **Kế hoạch điều trị tiếp theo :** * [Chỉ định cận lâm sàng, đơn thuốc, hoặc hẹn tái khám...]
-
-                    ## IV. Thông tin bổ sung
-                    * **Tóm tắt ca bệnh :** * [Gắn gọn tình trạng bệnh nhân, điểm cốt lõi cần lưu ý...]
-                    * **Ghi chú thêm :** * [Những lưu ý đặc biệt khác về bệnh nhân hoặc quá trình thăm khám...]
-
-                    ---
-                    **Ngày khám:** ....../....../20... 
-                    **Chữ ký Bác sĩ điều trị:**
-                    Then use the tool to export the above content to a DOCX file. Return only the file path of the generated DOCX as a string, without any additional text or formatting.
-                    If "không có " or "không có gì" is mentioned in the content, it means the field is empty and should be left blank in the DOCX."""
-
-                )
-            ),
+            SystemMessage(content=system_prompt),
             HumanMessage(
                 content=f"Export the following content to a DOCX file:\n\n{formatted_content}"
             ),

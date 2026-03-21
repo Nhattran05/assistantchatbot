@@ -16,6 +16,11 @@ langgraph>=0.1.0
 
 # Document generation
 python-docx>=1.1.0
-
+python-multipart
 # Utilities
 httpx>=0.27.0
+
+# LiveKit Voice AI
+livekit
+livekit-agents[openai,silero,turn-detector]
+livekit-plugins-noise-cancellation

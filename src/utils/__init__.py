@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_CONFIG_PATH = Path(__file__).parent.parent / "config" / "app.yaml"
+_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "app.yaml"
 
 
 @lru_cache(maxsize=1)

@@ -18,7 +18,6 @@ class FormDocxWorkflowState(TypedDict):
     docx_path: str
     next: str
     final_answer: str
-    summarize: str
 
 
 class FormDocxWorkflow(BaseWorkflow):
@@ -50,20 +49,8 @@ class FormDocxWorkflow(BaseWorkflow):
                 "filled_form": "",
             })
             return {"filled_form": result.get("filled_form", "")}
-        
-        async def node_summarize(state: FormDocxWorkflowState) -> dict:
-            from src.core.agents.factory import AgentFactory
-            from src.utils import load_config
 
-            config = load_config()
-            agent_config = config.get("agents", {}).get("summarization", {})
-            agent = AgentFactory.create("summarization", agent_config)
-            result = await agent.ainvoke({
-                "text": state["filled_form"],
-                "summary": "",
-            })
-            return {"summarize": result.get("summary", "")}
-            
+        # TODO: Add summarization agent node when the agent is implemented
 
         async def node_export_docx(state: FormDocxWorkflowState) -> dict:
             from src.core.agents.factory import AgentFactory
@@ -75,7 +62,8 @@ class FormDocxWorkflow(BaseWorkflow):
             result = await agent.ainvoke({"filled_form": state["filled_form"]})
             docx_path = result.get("docx_path", "")
             return {"docx_path": docx_path, "final_answer": docx_path}
-        #Straight GRAPH
+
+        # Straight GRAPH
         graph = StateGraph(FormDocxWorkflowState)
         graph.add_node("normalize", node_normalize)
         graph.add_node("form_fill", node_form_fill)

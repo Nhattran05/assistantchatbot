@@ -1,21 +1,8 @@
 llm:
-  default_provider: "openai"
-  default_model: "gpt-4o-mini"
-  providers:
-    openai:
-      model: "gpt-4o-mini"
-    anthropic:
-      model: "claude-3-haiku-20240307"
-    google:
-      model: "gemini-1.5-flash"
-    megaai:
-      model: "openai-gpt-oss-120b"
+  default_provider: "mega_llm"
+  default_model: "openai-gpt-oss-120b"
 
 agents:
-  researcher:
-    llm_provider: "openai"
-    llm_model: "gpt-4o-mini"
-    tools: []
   role_identification:
     llm_provider: "mega_llm"
     llm_model: "openai-gpt-oss-120b"
@@ -40,6 +27,18 @@ workflows:
   conversation_workflow:
     agents: ["role_identification", "text_normalization", "form_filling", "document_export"]
     checkpointer: false
+
+voice_agent:
+  agent_name: "data-collection-agent"
+  stt: "deepgram/nova-3:multi"
+  llm_model: "gpt-4.1-mini"
+  tts: "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
+  default_fields:
+    - "Họ và tên (full_name)"
+    - "Số điện thoại (phone_number)"
+    - "Số bảo hiểm y tế (health_insurance_number)"
+    - "Tiền sử bệnh lý (medical_history)"
+    - "Triệu chứng hiện tại (symptoms)"
 
 models:
   asr_path: "C:\\Users\\kans\\.cache\\huggingface\\hub\\models--nvidia--parakeet-ctc-0.6b-vi\\snapshots\\b0493142b49458810324e3db8be9e8e07b4ebc17\\parakeet-ctc-0.6b-vi.nemo"
