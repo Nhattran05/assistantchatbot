@@ -16,22 +16,10 @@ class LLMFactory:
         config = load_config()
         llm_config = config.get("llm", {})
 
-        provider = provider or llm_config.get("default_provider", "openai")
-        model = model or llm_config.get("default_model", "gpt-4o-mini")
+        provider = provider or llm_config.get("default_provider", "mega_llm")
+        model = model or llm_config.get("default_model", "openai-gpt-oss-120b")
 
         match provider:
-            case "openai":
-                from langchain_openai import ChatOpenAI
-
-                return ChatOpenAI(model=model, temperature=temperature, **kwargs)
-            case "anthropic":
-                from langchain_anthropic import ChatAnthropic
-
-                return ChatAnthropic(model=model, temperature=temperature, **kwargs)
-            case "google":
-                from langchain_google_genai import ChatGoogleGenerativeAI
-
-                return ChatGoogleGenerativeAI(model=model, temperature=temperature, **kwargs)
             case "mega_llm":
                 from langchain_openai import ChatOpenAI
                 return ChatOpenAI(

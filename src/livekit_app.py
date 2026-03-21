@@ -48,8 +48,8 @@ async def voice_session(ctx: agents.JobContext):
         stt="deepgram/nova-3:multi",
         # LLM: OpenAI GPT-4.1 mini via LiveKit Inference
         llm="openai/gpt-4.1-mini",
-        # TTS: Cartesia Sonic-3 via LiveKit Inference
-        tts="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+        # TTS: Eleven Labs flash v2.5 via LiveKit Inference
+        tts="elevenlabs/eleven_flash_v2_5",
         # VAD: Silero for voice activity detection
         vad=silero.VAD.load(),
         # Turn detection: multilingual model for natural conversation flow
