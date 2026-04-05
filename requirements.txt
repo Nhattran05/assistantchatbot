@@ -17,8 +17,29 @@ langgraph>=0.1.0
 # Document generation
 python-docx>=1.1.0
 python-multipart
+
 # Utilities
 httpx>=0.27.0
+soundfile>=0.12.0
+numpy>=1.20.0
+
+# ── Gipformer ASR Engine ──────────────────────────────────────────────────────
+sherpa-onnx>=1.10.0
+huggingface_hub>=0.20.0
+
+# ── Silero VAD ────────────────────────────────────────────────────────────────
+silero-vad>=5.0
+
+# ── ONNX Runtime ──────────────────────────────────────────────────────────────
+onnxruntime>=1.16.1
+# onnxruntime-gpu>=1.16.1  # Uncomment for GPU support
+
+# ── PyTorch ───────────────────────────────────────────────────────────────────
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# ── Diarization ───────────────────────────────────────────────────────────────
+nemo_toolkit[asr]
 
 # LiveKit Voice AI
 livekit

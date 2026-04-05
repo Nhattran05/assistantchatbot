@@ -41,8 +41,41 @@ voice_agent:
     - "Triệu chứng hiện tại (symptoms)"
 
 models:
-  asr_path: "C:\\Users\\kans\\.cache\\huggingface\\hub\\models--nvidia--parakeet-ctc-0.6b-vi\\snapshots\\b0493142b49458810324e3db8be9e8e07b4ebc17\\parakeet-ctc-0.6b-vi.nemo"
-  diarization_path: "D:\\nvidia parakeet\\diar_streaming_sortformer_4spk-v2.nemo"
+  diarization_path: "models\\diarization\\diar_streaming_sortformer_4spk-v2.nemo"
+  diarization_path_wsl: "models/diarization/diar_streaming_sortformer_4spk-v2.nemo"
+  # Cấu hình thiết bị cho diarization model (PyTorch)
+  # "auto" - Tự động chọn cuda nếu có, không thì dùng cpu (khuyến nghị)
+  # "cuda" - Bắt buộc dùng GPU, lỗi nếu không có
+  # "cpu" - Bắt buộc dùng CPU
+  device: "auto"
+
+# ── Gipformer RNNT ASR ────────────────────────────────────────────────────────
+# Model: g-group-ai-lab/gipformer-65M-rnnt (downloaded from HuggingFace on startup)
+gipformer:
+  repo_id: "g-group-ai-lab/gipformer-65M-rnnt"
+  # Đường dẫn lưu model cục bộ (tải về đây, dùng offline sau)
+  local_model_path: "models\\gipformer"
+  # Chọn độ chính xác model: "int8" (nhanh hơn) hoặc "fp32" (chính xác hơn)
+  quantize: "fp32"
+  num_threads: 4
+  decoding_method: "modified_beam_search"  # hoặc "greedy_search"
+  max_batch_size: 16
+  max_wait_ms: 100
+  # Cấu hình execution provider cho ONNX Runtime
+  # "auto" - Tự động chọn cuda nếu có, không thì dùng cpu (khuyến nghị)
+  # "cuda" - Bắt buộc dùng CUDAExecutionProvider (yêu cầu onnxruntime-gpu)
+  # "cpu" - Bắt buộc dùng CPUExecutionProvider
+  provider: "auto"
+
+silero_vad:
+  threshold: 0.4
+  min_silence_duration_ms: 500
+  speech_pad_ms: 120
+  max_speech_ms: 15000
+  sample_rate: 16000
+  window_samples: 512
+  batch_size: 4
+  batch_timeout_ms: 15
 
 database:
   type: "memory"

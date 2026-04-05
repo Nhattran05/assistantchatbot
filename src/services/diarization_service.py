@@ -15,7 +15,7 @@ import librosa
 import soundfile as sf
 
 # Default paths — can be overridden via config/app.yaml
-_DEFAULT_MODEL_PATH = r"D:\diar_streaming_sortformer_4spk-v2\diar_streaming_sortformer_4spk-v2.nemo"
+_DEFAULT_MODEL_PATH = r"models\diarization\diar_streaming_sortformer_4spk-v2.nemo"
 
 # High latency
 _PRESET = dict(
@@ -35,11 +35,25 @@ class DiarSegment:
 
 
 @lru_cache(maxsize=1)
-def _load_diar_model(model_path: str):
+def _load_diar_model(model_path: str, device_config: str = "auto"):
     from nemo.collections.asr.models import SortformerEncLabelModel
     import torch
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Determine device
+    if device_config == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    elif device_config == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "Config yêu cầu device='cuda' nhưng CUDA không khả dụng. "
+                "Hãy cài PyTorch với CUDA hoặc đổi device sang 'auto' hoặc 'cpu'."
+            )
+        device = "cuda"
+    elif device_config == "cpu":
+        device = "cpu"
+    else:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
     if os.path.exists(model_path):
         model = SortformerEncLabelModel.restore_from(
             restore_path=model_path,
@@ -89,11 +103,15 @@ def _preprocess_audio(audio_path: str) -> str:
 class DiarizationService:
     def __init__(self, model_path: str | None = None):
         from src.utils import load_config
+        from src.services.asr_service import _resolve_path
         cfg = load_config()
-        self._model_path = (
-            model_path
-            or cfg.get("models", {}).get("diarization_path", _DEFAULT_MODEL_PATH)
+        models_cfg = cfg.get("models", {})
+        self._model_path = _resolve_path(
+            models_cfg,
+            "diarization_path",
+            _DEFAULT_MODEL_PATH,
         )
+        self._device_config = models_cfg.get("device", "auto")
 
     def diarize(self, audio_path: str) -> list[DiarSegment]:
         """Run speaker diarization on a WAV file. Returns list of DiarSegment."""
@@ -101,7 +119,7 @@ class DiarizationService:
         ready_path = _preprocess_audio(audio_path)
 
         try:
-            model = _load_diar_model(self._model_path)
+            model = _load_diar_model(self._model_path, self._device_config)
             results = model.diarize(audio=ready_path, batch_size=1)
             segments: list[DiarSegment] = []
             for seg in results[0]:
