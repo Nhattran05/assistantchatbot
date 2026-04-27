@@ -1,18 +1,28 @@
+"""
+src/routers/__init__.py
+───────────────────────
+Central router registration.
+
+How to add a new router
+-----------------------
+    1. Create ``src/routers/my_router.py`` with a FastAPI ``APIRouter``.
+    2. Import and include it here:
+
+        from src.routers.my_router import router as my_router
+
+        def register_routers(app: FastAPI) -> None:
+            app.include_router(my_router)
+"""
+
 from fastapi import FastAPI
 
 
 def register_routers(app: FastAPI) -> None:
-    from src.routers.chat import router as chat_router
-    from src.routers.conversation import router as conversation_router
-    from src.routers.test_llm import router as test_llm_router
-    from src.routers.test_workflow import router as test_workflow_router
-    from src.routers.voice_call import router as voice_call_router
-    from src.routers.livekit import router as livekit_router
+    """Include all API routers into *app*."""
+    from src.routers.database import router as database_router
+    from src.routers.test_guardrail import router as test_guardrail_router
+    from src.routers.workflow import router as workflow_router
 
-    app.include_router(chat_router)
-    app.include_router(test_llm_router)
-    app.include_router(test_workflow_router)
-    app.include_router(conversation_router)
-    app.include_router(voice_call_router)
-    app.include_router(livekit_router)
-
+    app.include_router(test_guardrail_router)
+    app.include_router(workflow_router)
+    app.include_router(database_router)

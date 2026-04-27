@@ -1,81 +1,45 @@
+app:
+  name: "NLQ Multi-Agent"
+  version: "0.1.0"
+  log_level: "INFO"
+
 llm:
   default_provider: "mega_llm"
   default_model: "openai-gpt-oss-120b"
+  providers:
+    mega_llm:
+      model: "openai-gpt-oss-120b"
+      base_url: "https://ai.megallm.io/v1"
+      temperature: 0.2
 
 agents:
-  role_identification:
+  guardrail:
+    llm_provider: "mega_llm"
+    auto_limit: 100
+    # Future schema guardrail settings (leave empty until schema is ready):
+    # blocked_tables: []
+    # blocked_columns: []
+    # require_tenant_isolation: false
+  schema_linking_agent:
     llm_provider: "mega_llm"
     llm_model: "openai-gpt-oss-120b"
-  text_normalization:
+    tools: []
+  sql_gen_agent:
     llm_provider: "mega_llm"
     llm_model: "openai-gpt-oss-120b"
-  form_filling:
+    max_retries: 2
+  reflection_agent:
     llm_provider: "mega_llm"
     llm_model: "openai-gpt-oss-120b"
-  document_export:
-    llm_provider: "mega_llm"
-    llm_model: "openai-gpt-oss-120b"
+    tools: []
 
 workflows:
-  default: "default_workflow"
-  default_workflow:
-    agents: ["researcher"]
-    checkpointer: false
-  form_docx_workflow:
-    agents: ["text_normalization", "form_filling", "document_export"]
-    checkpointer: false
-  conversation_workflow:
-    agents: ["role_identification", "text_normalization", "form_filling", "document_export"]
-    checkpointer: false
+  default: "nlq"
+  nlq: {}
 
-voice_agent:
-  agent_name: "data-collection-agent"
-  stt: "deepgram/nova-3:multi"
-  llm_model: "gpt-4.1-mini"
-  tts: "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
-  default_fields:
-    - "Họ và tên (full_name)"
-    - "Số điện thoại (phone_number)"
-    - "Số bảo hiểm y tế (health_insurance_number)"
-    - "Tiền sử bệnh lý (medical_history)"
-    - "Triệu chứng hiện tại (symptoms)"
-
-models:
-  diarization_path: "models\\diarization\\diar_streaming_sortformer_4spk-v2.nemo"
-  diarization_path_wsl: "models/diarization/diar_streaming_sortformer_4spk-v2.nemo"
-  # Cấu hình thiết bị cho diarization model (PyTorch)
-  # "auto" - Tự động chọn cuda nếu có, không thì dùng cpu (khuyến nghị)
-  # "cuda" - Bắt buộc dùng GPU, lỗi nếu không có
-  # "cpu" - Bắt buộc dùng CPU
-  device: "auto"
-
-# ── Gipformer RNNT ASR ────────────────────────────────────────────────────────
-# Model: g-group-ai-lab/gipformer-65M-rnnt (downloaded from HuggingFace on startup)
-gipformer:
-  repo_id: "g-group-ai-lab/gipformer-65M-rnnt"
-  # Đường dẫn lưu model cục bộ (tải về đây, dùng offline sau)
-  local_model_path: "models\\gipformer"
-  # Chọn độ chính xác model: "int8" (nhanh hơn) hoặc "fp32" (chính xác hơn)
-  quantize: "fp32"
-  num_threads: 4
-  decoding_method: "modified_beam_search"  # hoặc "greedy_search"
-  max_batch_size: 16
-  max_wait_ms: 100
-  # Cấu hình execution provider cho ONNX Runtime
-  # "auto" - Tự động chọn cuda nếu có, không thì dùng cpu (khuyến nghị)
-  # "cuda" - Bắt buộc dùng CUDAExecutionProvider (yêu cầu onnxruntime-gpu)
-  # "cpu" - Bắt buộc dùng CPUExecutionProvider
-  provider: "auto"
-
-silero_vad:
-  threshold: 0.4
-  min_silence_duration_ms: 500
-  speech_pad_ms: 120
-  max_speech_ms: 15000
-  sample_rate: 16000
-  window_samples: 512
-  batch_size: 4
-  batch_timeout_ms: 15
-
-database:
-  type: "memory"
+databases:
+  default: "mysql"
+  postgres:
+    url: "${DATABASE_URL}"
+    pool_size: 5
+    max_overflow: 10

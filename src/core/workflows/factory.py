@@ -1,26 +1,81 @@
-from src.core.workflows.base import BaseWorkflow
-from src.core.workflows.conversation_workflow import ConversationWorkflow
-from src.core.workflows.form_docx_workflow import FormDocxWorkflow
+"""
+src/core/workflows/factory.py
+────────────────────────────
+Central registry and factory for workflows.
 
-# Registry: tên workflow → class workflow
+To add a new workflow
+---------------------
+    1. Create ``src/core/workflows/my_workflow.py`` subclassing ``BaseWorkflow``.
+    2. Import and register the class below:
+
+        from src.core.workflows.my_workflow import MyWorkflow
+
+        WORKFLOW_REGISTRY: dict[str, type[BaseWorkflow]] = {
+            "my_workflow": MyWorkflow,   # ← add here
+        }
+
+    3. Add config to ``config/app.yaml``:
+
+        workflows:
+          default: "my_workflow"
+          my_workflow:
+            agents: ["supervisor", "researcher"]
+            checkpointer: true
+
+Usage
+-----
+    from src.core.workflows.factory import WorkflowFactory
+
+    workflow = WorkflowFactory.create()              # uses app.yaml default
+    workflow = WorkflowFactory.create("my_workflow")
+    result   = await workflow.ainvoke({"messages": [...]})
+"""
+
+from __future__ import annotations
+
+from src.core.workflows.base import BaseWorkflow
+from src.core.workflows.nlq_workflow import NlqWorkflow
+from src.utils import load_config
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Registry – map workflow name  →  workflow class
+# ─────────────────────────────────────────────────────────────────────────────
 WORKFLOW_REGISTRY: dict[str, type[BaseWorkflow]] = {
-    "form_docx_workflow": FormDocxWorkflow,
-    "conversation_workflow": ConversationWorkflow,
+    "nlq": NlqWorkflow,
 }
 
 
 class WorkflowFactory:
     @staticmethod
     def create(name: str | None = None, config: dict | None = None) -> BaseWorkflow:
-        from src.utils import load_config
+        """
+        Instantiate and return the workflow registered under *name*.
 
-        app_config = load_config()
-        workflow_name = name or app_config.get("workflows", {}).get("default", "")
+        Falls back to ``config/app.yaml``  ->  ``workflows.default`` when
+        *name* is ``None``.
 
-        if workflow_name not in WORKFLOW_REGISTRY:
+        Raises
+        ------
+        ValueError  – when *name* cannot be resolved or is not in the registry.
+        """
+        app_cfg = load_config()
+        name = name or app_cfg.get("workflows", {}).get("default")
+
+        if not name:
             raise ValueError(
-                f"Workflow '{workflow_name}' not found. Available: {list(WORKFLOW_REGISTRY.keys())}"
+                "No workflow name supplied and 'workflows.default' is not set "
+                "in config/app.yaml."
             )
-        workflow_cls = WORKFLOW_REGISTRY[workflow_name]
-        workflow_config = config or app_config.get("workflows", {}).get(workflow_name, {})
-        return workflow_cls(workflow_config)
+        if name not in WORKFLOW_REGISTRY:
+            raise ValueError(
+                f"Workflow '{name}' not found in WORKFLOW_REGISTRY. "
+                f"Available workflows: {list(WORKFLOW_REGISTRY)}"
+            )
+
+        workflow_config = config or app_cfg.get("workflows", {}).get(name, {})
+        return WORKFLOW_REGISTRY[name](config=workflow_config)
+
+    @staticmethod
+    def list_workflows() -> list[str]:
+        """Return the names of all registered workflows."""
+        return list(WORKFLOW_REGISTRY)

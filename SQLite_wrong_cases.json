@@ -1,0 +1,856 @@
+{
+  "evaluated_count": 200,
+  "wrong_count": 85,
+  "wrong_cases": [
+    {
+      "sql_idx": 0,
+      "question_id": 1471,
+      "db_id": "debit_card_specializing",
+      "difficulty": "simple",
+      "question": "What is the ratio of customers who pay in EUR against customers who pay in CZK?",
+      "evidence": "ratio of customers who pay in EUR against customers who pay in CZK = count(Currency = 'EUR') / count(Currency = 'CZK').",
+      "predicted_sql": "SELECT COUNT(DISTINCT CASE WHEN Currency = 'EUR' THEN CustomerID END) / NULLIF(COUNT(DISTINCT CASE WHEN Currency = 'CZK' THEN CustomerID END), 0) AS ratio FROM customers;",
+      "ground_truth_sql": "SELECT  CAST(SUM(CASE WHEN `Currency` = 'EUR' THEN 1 ELSE 0 END) AS DOUBLE) / SUM(CASE WHEN `Currency` = 'CZK' THEN 1 ELSE 0 END) FROM `customers`"
+    },
+    {
+      "sql_idx": 3,
+      "question_id": 1476,
+      "db_id": "debit_card_specializing",
+      "difficulty": "challenging",
+      "question": "What was the difference in gas consumption between CZK-paying customers and EUR-paying customers in 2012?",
+      "evidence": "Year 2012 can be presented as Between 201201 And 201212; The first 4 strings of the Date values in the yearmonth table can represent year; Difference in Consumption = CZK customers consumption in 2012 - EUR customers consumption in 2012",
+      "predicted_sql": "SELECT SUM(CASE WHEN cu.Currency = 'CZK' THEN ym.Consumption ELSE 0 END) - SUM(CASE WHEN cu.Currency = 'EUR' THEN ym.Consumption ELSE 0 END) AS ConsumptionDifference FROM customers cu JOIN yearmonth ym ON cu.CustomerID = ym.CustomerID WHERE ym.Date BETWEEN '201201' AND '201212';",
+      "ground_truth_sql": "SELECT   SUM(CASE WHEN `T1`.`Currency` = 'CZK' THEN `T2`.`Consumption` ELSE 0 END) - SUM(CASE WHEN `T1`.`Currency` = 'EUR' THEN `T2`.`Consumption` ELSE 0 END) FROM `customers` AS `T1` INNER JOIN `yearmonth` AS `T2`   ON `T1`.`CustomerID` = `T2`.`CustomerID` WHERE   SUBSTR(`T2`.`Date`, 1, 4) = '2012'"
+    },
+    {
+      "sql_idx": 6,
+      "question_id": 1481,
+      "db_id": "debit_card_specializing",
+      "difficulty": "challenging",
+      "question": "What is the difference in the annual average consumption of the customers with the least amount of consumption paid in CZK for 2013 between SME and LAM, LAM and KAM, and KAM and SME?",
+      "evidence": "annual average consumption of customer with the lowest consumption in each segment = total consumption per year / the number of customer with lowest consumption in each segment; Difference in annual average = SME's annual average - LAM's annual average; Difference in annual average = LAM's annual average - KAM's annual average; Year 2013 can be presented as Between 201301 And 201312; The first 4 strings of the Date values in the yearmonth table can represent year.",
+      "predicted_sql": "WITH cust_cons AS ( SELECT c.CustomerID, c.Segment, SUM(y.Consumption) AS total_cons FROM yearmonth y JOIN customers c ON y.CustomerID = c.CustomerID WHERE c.Currency = 'CZK' AND y.Date BETWEEN '201301' AND '201312' GROUP BY c.CustomerID, c.Segment ), segment_min AS ( SELECT Segment, MIN(total_cons) AS min_cons FROM cust_cons GROUP BY Segment ), segment_stats AS ( SELECT cm.Segment, SUM(cm.total_cons) / COUNT(*) AS avg_cons FROM cust_cons cm JOIN segment_min sm ON cm.Segment = sm.Segment AND cm.total_cons = sm.min_cons GROUP BY cm.Segment ) SELECT (SELECT avg_cons FROM segment_stats WHERE Segment = 'SME') - (SELECT avg_cons FROM segment_stats WHERE Segment = 'LAM') AS diff_SME_LAM, (SELECT avg_cons FROM segment_stats WHERE Segment = 'LAM') - (SELECT avg_cons FROM segment_stats WHERE Segment = 'KAM') AS diff_LAM_KAM, (SELECT avg_cons FROM segment_stats WHERE Segment = 'KAM') - (SELECT avg_cons FROM segment_stats WHERE Segment = 'SME') AS diff_KAM_SME;",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `T1`.`Segment` = 'SME' THEN `T2`.`Consumption` ELSE 0 END) AS DOUBLE) / COUNT(`T1`.`CustomerID`) - CAST(SUM(CASE WHEN `T1`.`Segment` = 'LAM' THEN `T2`.`Consumption` ELSE 0 END) AS DOUBLE) / COUNT(`T1`.`CustomerID`),   CAST(SUM(CASE WHEN `T1`.`Segment` = 'LAM' THEN `T2`.`Consumption` ELSE 0 END) AS DOUBLE) / COUNT(`T1`.`CustomerID`) - CAST(SUM(CASE WHEN `T1`.`Segment` = 'KAM' THEN `T2`.`Consumption` ELSE 0 END) AS DOUBLE) / COUNT(`T1`.`CustomerID`),   CAST(SUM(CASE WHEN `T1`.`Segment` = 'KAM' THEN `T2`.`Consumption` ELSE 0 END) AS DOUBLE) / COUNT(`T1`.`CustomerID`) - CAST(SUM(CASE WHEN `T1`.`Segment` = 'SME' THEN `T2`.`Consumption` ELSE 0 END) AS DOUBLE) / COUNT(`T1`.`CustomerID`) FROM `customers` AS `T1` INNER JOIN `yearmonth` AS `T2`   ON `T1`.`CustomerID` = `T2`.`CustomerID` WHERE   `T1`.`Currency` = 'CZK'   AND `T2`.`Consumption` = (     SELECT       MIN(`Consumption`)     FROM `yearmonth`   )   AND `T2`.`Date` BETWEEN 201301 AND 201312"
+    },
+    {
+      "sql_idx": 7,
+      "question_id": 1482,
+      "db_id": "debit_card_specializing",
+      "difficulty": "challenging",
+      "question": "Which of the three segmentsâ€”SME, LAM and KAMâ€”has the biggest and lowest percentage increases in consumption paid in EUR between 2012 and 2013?",
+      "evidence": "Increase or Decrease = consumption for 2013 - consumption for 2012; Percentage of Increase = (Increase or Decrease / consumption for 2013) * 100%; The first 4 strings of the Date values in the yearmonth table can represent year",
+      "predicted_sql": "WITH pct AS ( SELECT c.Segment, (SUM(CASE WHEN LEFT(ym.Date, 4) = '2013' THEN ym.Consumption ELSE 0 END) - SUM(CASE WHEN LEFT(ym.Date, 4) = '2012' THEN ym.Consumption ELSE 0 END)) / NULLIF(SUM(CASE WHEN LEFT(ym.Date, 4) = '2013' THEN ym.Consumption ELSE 0 END), 0) * 100 AS pct_change FROM customers c JOIN yearmonth ym ON c.CustomerID = ym.CustomerID WHERE c.Currency = 'EUR' AND c.Segment IN ('SME', 'LAM', 'KAM') GROUP BY c.Segment ) SELECT Segment, pct_change FROM pct WHERE pct_change = (SELECT MAX(pct_change) FROM pct) OR pct_change = (SELECT MIN(pct_change) FROM pct);",
+      "ground_truth_sql": "SELECT   CAST((     SUM(       CASE         WHEN `T1`.`Segment` = 'SME' AND `T2`.`Date` LIKE '2013%'         THEN `T2`.`Consumption`         ELSE 0       END     ) - SUM(       CASE         WHEN `T1`.`Segment` = 'SME' AND `T2`.`Date` LIKE '2012%'         THEN `T2`.`Consumption`         ELSE 0       END     )   ) AS DOUBLE) * 100 / SUM(     CASE       WHEN `T1`.`Segment` = 'SME' AND `T2`.`Date` LIKE '2012%'       THEN `T2`.`Consumption`       ELSE 0     END   ),   CAST(SUM(     CASE       WHEN `T1`.`Segment` = 'LAM' AND `T2`.`Date` LIKE '2013%'       THEN `T2`.`Consumption`       ELSE 0     END   ) - SUM(     CASE       WHEN `T1`.`Segment` = 'LAM' AND `T2`.`Date` LIKE '2012%'       THEN `T2`.`Consumption`       ELSE 0     END   ) AS DOUBLE) * 100 / SUM(     CASE       WHEN `T1`.`Segment` = 'LAM' AND `T2`.`Date` LIKE '2012%'       THEN `T2`.`Consumption`       ELSE 0     END   ),   CAST(SUM(     CASE       WHEN `T1`.`Segment` = 'KAM' AND `T2`.`Date` LIKE '2013%'       THEN `T2`.`Consumption`       ELSE 0     END   ) - SUM(     CASE       WHEN `T1`.`Segment` = 'KAM' AND `T2`.`Date` LIKE '2012%'       THEN `T2`.`Consumption`       ELSE 0     END   ) AS DOUBLE) * 100 / SUM(     CASE       WHEN `T1`.`Segment` = 'KAM' AND `T2`.`Date` LIKE '2012%'       THEN `T2`.`Consumption`       ELSE 0     END   ) FROM `customers` AS `T1` INNER JOIN `yearmonth` AS `T2`   ON `T1`.`CustomerID` = `T2`.`CustomerID`"
+    },
+    {
+      "sql_idx": 10,
+      "question_id": 1486,
+      "db_id": "debit_card_specializing",
+      "difficulty": "simple",
+      "question": "Is it true that more SMEs pay in Czech koruna than in euros? If so, how many more?",
+      "evidence": "Amount of more SMEs = Total of SMEs pay using Currency CZK - Total of SMEs pay using Currency EUR",
+      "predicted_sql": "SELECT (COUNT(DISTINCT CASE WHEN Segment = 'SME' AND Currency = 'CZK' THEN CustomerID END) > COUNT(DISTINCT CASE WHEN Segment = 'SME' AND Currency = 'EUR' THEN CustomerID END)) AS czk_more_than_eur, (COUNT(DISTINCT CASE WHEN Segment = 'SME' AND Currency = 'CZK' THEN CustomerID END) - COUNT(DISTINCT CASE WHEN Segment = 'SME' AND Currency = 'EUR' THEN CustomerID END)) AS more_sme_count FROM customers;",
+      "ground_truth_sql": "SELECT   SUM(`Currency` = 'CZK') - SUM(`Currency` = 'EUR') FROM `customers` WHERE   `Segment` = 'SME'"
+    },
+    {
+      "sql_idx": 11,
+      "question_id": 1490,
+      "db_id": "debit_card_specializing",
+      "difficulty": "moderate",
+      "question": "How many percent of LAM customer consumed more than 46.73?",
+      "evidence": "Percentage of LAM customer consumed more than 46.73 = (Total no. of LAM customers who consumed more than 46.73 / Total no. of LAM customers) * 100.",
+      "predicted_sql": "SELECT (COUNT(DISTINCT CASE WHEN ym.Consumption > 46.73 THEN c.CustomerID END) * 100.0) / COUNT(DISTINCT c.CustomerID) AS percentage FROM customers AS c LEFT JOIN yearmonth AS ym ON c.CustomerID = ym.CustomerID WHERE c.Segment = 'LAM';",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `T2`.`Consumption` > 46.73 THEN 1 ELSE 0 END) AS DOUBLE) * 100 / COUNT(`T1`.`CustomerID`) FROM `customers` AS `T1` INNER JOIN `yearmonth` AS `T2`   ON `T1`.`CustomerID` = `T2`.`CustomerID` WHERE   `T1`.`Segment` = 'LAM'"
+    },
+    {
+      "sql_idx": 12,
+      "question_id": 1493,
+      "db_id": "debit_card_specializing",
+      "difficulty": "simple",
+      "question": "In February 2012, what percentage of customers consumed more than 528.3?",
+      "evidence": "February 2012 refers to '201202' in yearmonth.date; The first 4 strings of the Date values in the yearmonth table can represent year; The 5th and 6th string of the date can refer to month.",
+      "predicted_sql": "SELECT (COUNT(DISTINCT CASE WHEN Consumption > 528.3 THEN CustomerID END) / COUNT(DISTINCT CustomerID)) * 100 AS percentage FROM yearmonth WHERE Date LIKE '201202%';",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `Consumption` > 528.3 THEN 1 ELSE 0 END) AS DOUBLE) * 100 / COUNT(`CustomerID`) FROM `yearmonth` WHERE   `Date` = '201202'"
+    },
+    {
+      "sql_idx": 13,
+      "question_id": 1498,
+      "db_id": "debit_card_specializing",
+      "difficulty": "simple",
+      "question": "What is the highest monthly consumption in the year 2012?",
+      "evidence": "The first 4 strings of the Date values in the yearmonth table can represent year; The 5th and 6th string of the date can refer to month.",
+      "predicted_sql": "SELECT MAX(Consumption) AS HighestConsumption FROM yearmonth WHERE LEFT(Date, 4) = '2012';",
+      "ground_truth_sql": "SELECT   SUM(`Consumption`) FROM `yearmonth` WHERE   SUBSTR(`Date`, 1, 4) = '2012' GROUP BY   SUBSTR(`Date`, 5, 2) ORDER BY   SUM(`Consumption`) DESC LIMIT 1"
+    },
+    {
+      "sql_idx": 15,
+      "question_id": 1501,
+      "db_id": "debit_card_specializing",
+      "difficulty": "moderate",
+      "question": "Please list the countries of the gas stations with transactions taken place in June, 2013.",
+      "evidence": "June 2013 refers to '201306'; The first 4 strings of the Date values in the yearmonth table can represent year; The 5th and 6th string of the date can refer to month;",
+      "predicted_sql": "SELECT DISTINCT g.Country FROM gasstations AS g JOIN transactions_1k AS t ON g.GasStationID = t.GasStationID WHERE LEFT(t.Date, 6) = '201306';",
+      "ground_truth_sql": "SELECT DISTINCT   `T2`.`Country` FROM `transactions_1k` AS `T1` INNER JOIN `gasstations` AS `T2`   ON `T1`.`GasStationID` = `T2`.`GasStationID` INNER JOIN `yearmonth` AS `T3`   ON `T1`.`CustomerID` = `T3`.`CustomerID` WHERE   `T3`.`Date` = '201306'"
+    },
+    {
+      "sql_idx": 16,
+      "question_id": 1505,
+      "db_id": "debit_card_specializing",
+      "difficulty": "simple",
+      "question": "Among the customers who paid in euro, how many of them have a monthly consumption of over 1000?",
+      "evidence": "Pays in euro = Currency = 'EUR'.",
+      "predicted_sql": "SELECT COUNT(DISTINCT c.CustomerID) AS cnt FROM customers AS c JOIN yearmonth AS y ON c.CustomerID = y.CustomerID WHERE c.Currency = 'EUR' AND y.Consumption > 1000;",
+      "ground_truth_sql": "SELECT   COUNT(*) FROM `yearmonth` AS `T1` INNER JOIN `customers` AS `T2`   ON `T1`.`CustomerID` = `T2`.`CustomerID` WHERE   `T2`.`Currency` = 'EUR' AND `T1`.`Consumption` > 1000.00"
+    },
+    {
+      "sql_idx": 23,
+      "question_id": 1524,
+      "db_id": "debit_card_specializing",
+      "difficulty": "simple",
+      "question": "What's the nationality of the customer who spent 548.4 in 2012/8/24?",
+      "evidence": "'2012/8/24' can be represented by '2012-08-24'",
+      "predicted_sql": "SELECT NULL AS nationality FROM customers c WHERE FALSE;",
+      "ground_truth_sql": "SELECT   `T2`.`Country` FROM `transactions_1k` AS `T1` INNER JOIN `gasstations` AS `T2`   ON `T1`.`GasStationID` = `T2`.`GasStationID` WHERE   `T1`.`Date` = '2012-08-24' AND  `T1`.`Price` = 548.4"
+    },
+    {
+      "sql_idx": 24,
+      "question_id": 1525,
+      "db_id": "debit_card_specializing",
+      "difficulty": "simple",
+      "question": "What is the percentage of the customers who used EUR in 2012/8/25?",
+      "evidence": "'2012/8/25' can be represented by '2012-08-25'",
+      "predicted_sql": "SELECT (COUNT(DISTINCT CASE WHEN c.Currency = 'EUR' THEN c.CustomerID END) / COUNT(DISTINCT c.CustomerID)) * 100 AS percentage FROM customers AS c JOIN transactions_1k AS t ON c.CustomerID = t.CustomerID WHERE t.Date = '2012-08-25';",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `T2`.`Currency` = 'EUR' THEN 1 ELSE 0 END) AS DOUBLE) * 100 / COUNT(`T1`.`CustomerID`) FROM `transactions_1k` AS `T1` INNER JOIN `customers` AS `T2`   ON `T1`.`CustomerID` = `T2`.`CustomerID` WHERE   `T1`.`Date` = '2012-08-25'"
+    },
+    {
+      "sql_idx": 25,
+      "question_id": 1526,
+      "db_id": "debit_card_specializing",
+      "difficulty": "challenging",
+      "question": "For the customer who paid 634.8 in 2012/8/25, what was the consumption decrease rate from Year 2012 to 2013?",
+      "evidence": "'2012/8/24' can be represented by '2012-08-24'; Consumption decrease rate = (consumption_2012 - consumption_2013) / consumption_2012",
+      "predicted_sql": "SELECT (c2012.consumption - c2013.consumption) / c2012.consumption AS decrease_rate FROM (SELECT CustomerID, SUM(Consumption) AS consumption FROM yearmonth WHERE YEAR(Date) = 2012 GROUP BY CustomerID) AS c2012 JOIN (SELECT CustomerID, SUM(Consumption) AS consumption FROM yearmonth WHERE YEAR(Date) = 2013 GROUP BY CustomerID) AS c2013 ON c2012.CustomerID = c2013.CustomerID JOIN (SELECT CustomerID FROM transactions_1k WHERE Date = '2012-08-25' AND Price = 634.8) AS t ON c2012.CustomerID = t.CustomerID LIMIT 1;",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN SUBSTR(`Date`, 1, 4) = '2012' THEN `Consumption` ELSE 0 END) - SUM(CASE WHEN SUBSTR(`Date`, 1, 4) = '2013' THEN `Consumption` ELSE 0 END) AS DOUBLE) / SUM(CASE WHEN SUBSTR(`Date`, 1, 4) = '2012' THEN `Consumption` ELSE 0 END) FROM `yearmonth` WHERE   `CustomerID` = (     SELECT       `T1`.`CustomerID`     FROM `transactions_1k` AS `T1`     INNER JOIN `gasstations` AS `T2`       ON `T1`.`GasStationID` = `T2`.`GasStationID`     WHERE       `T1`.`Date` = '2012-08-25' AND `T1`.`Price`  = 1513.12   )"
+    },
+    {
+      "sql_idx": 26,
+      "question_id": 1528,
+      "db_id": "debit_card_specializing",
+      "difficulty": "simple",
+      "question": "What is the percentage of \"premium\" against the overall segment in Country = \"SVK\"?",
+      "evidence": "",
+      "predicted_sql": "SELECT 100.0 * SUM(CASE WHEN Segment = 'premium' THEN 1 ELSE 0 END) / COUNT(*) AS premium_percentage FROM gasstations WHERE Country = 'SVK';",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `Country` = 'SVK' AND `Segment` = 'Premium' THEN 1 ELSE 0 END) AS DOUBLE) * 100 / SUM(CASE WHEN `Country` = 'SVK' THEN 1 ELSE 0 END) FROM `gasstations`"
+    },
+    {
+      "sql_idx": 27,
+      "question_id": 1529,
+      "db_id": "debit_card_specializing",
+      "difficulty": "moderate",
+      "question": "What is the amount spent by customer \"38508\" at the gas stations? How much had the customer spent in January 2012?",
+      "evidence": "January 2012 refers to the Date value = '201201'",
+      "predicted_sql": "SELECT (SELECT SUM(t.Price) FROM transactions_1k t WHERE t.CustomerID = 38508 AND t.GasStationID IS NOT NULL) AS total_spent, (SELECT y.Consumption FROM yearmonth y WHERE y.CustomerID = 38508 AND y.Date = '201201') AS jan_spent;",
+      "ground_truth_sql": "SELECT   SUM(`T1`.`Price` ),   SUM(CASE WHEN `T3`.`Date` = '201201' THEN `T1`.`Price` ELSE 0 END) FROM `transactions_1k` AS `T1` INNER JOIN `gasstations` AS `T2`   ON `T1`.`GasStationID` = `T2`.`GasStationID` INNER JOIN `yearmonth` AS `T3`   ON `T1`.`CustomerID` = `T3`.`CustomerID` WHERE   `T1`.`CustomerID` = '38508'"
+    },
+    {
+      "sql_idx": 28,
+      "question_id": 1531,
+      "db_id": "debit_card_specializing",
+      "difficulty": "moderate",
+      "question": "Who is the top spending customer and how much is the average price per single item purchased by this customer? What currency was being used?",
+      "evidence": "average price per single item = Total(price) / Total(amount)",
+      "predicted_sql": "SELECT c.CustomerID, agg.total_spending / agg.total_amount AS avg_price_per_item, c.Currency FROM ( SELECT CustomerID, SUM(Price) AS total_spending, SUM(Amount) AS total_amount FROM transactions_1k GROUP BY CustomerID ) AS agg JOIN customers AS c ON c.CustomerID = agg.CustomerID ORDER BY agg.total_spending DESC LIMIT 1;",
+      "ground_truth_sql": "SELECT   `T2`.`CustomerID`,   SUM(`T2`.`Price` / `T2`.`Amount`),   `T1`.`Currency` FROM `customers` AS `T1` INNER JOIN `transactions_1k` AS `T2`   ON `T1`.`CustomerID` = `T2`.`CustomerID` WHERE   `T2`.`CustomerID` = (     SELECT       `CustomerID`     FROM `yearmonth`     ORDER BY       `Consumption` DESC     LIMIT 1   ) GROUP BY   `T2`.`CustomerID`,   `T1`.`Currency`"
+    },
+    {
+      "sql_idx": 29,
+      "question_id": 1533,
+      "db_id": "debit_card_specializing",
+      "difficulty": "moderate",
+      "question": "For all the people who paid more than 29.00 per unit of product id No.5. Give their consumption status in the August of 2012.",
+      "evidence": "August of 2012 refers to the Date value = '201208' ; Price per unit of product = Price / Amount;",
+      "predicted_sql": "SELECT DISTINCT ym.CustomerID, ym.Consumption FROM transactions_1k AS t JOIN yearmonth AS ym ON t.CustomerID = ym.CustomerID WHERE t.ProductID = 5 AND t.Price / t.Amount > 29.00 AND ym.Date = '201208';",
+      "ground_truth_sql": "SELECT   `T2`.`Consumption` FROM `transactions_1k` AS `T1` INNER JOIN `yearmonth` AS `T2`   ON `T1`.`CustomerID` = `T2`.`CustomerID` WHERE   `T1`.`Price` / `T1`.`Amount` > 29.00   AND `T1`.`ProductID` = 5   AND `T2`.`Date` = '201208'"
+    },
+    {
+      "sql_idx": 31,
+      "question_id": 1317,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "Among the students from the Student_Club who attended the event \"Women's Soccer\", how many of them want a T-shirt that's in medium size?",
+      "evidence": "Women's Soccer is an event name; T-shirt that is in medium size refers to t_shirt_size = 'Medium'",
+      "predicted_sql": "SELECT COUNT(DISTINCT m.member_id) AS count FROM member m JOIN attendance a ON a.link_to_member = m.member_id JOIN event e ON a.link_to_event = e.event_id WHERE m.position = 'Student_Club' AND e.event_name = 'Women\\'s Soccer' AND m.t_shirt_size = 'Medium';",
+      "ground_truth_sql": "SELECT   COUNT(`T1`.`event_id`) FROM `event` AS `T1` INNER JOIN `attendance` AS `T2`   ON `T1`.`event_id` = `T2`.`link_to_event` INNER JOIN `member` AS `T3`   ON `T2`.`link_to_member` = `T3`.`member_id` WHERE   `T1`.`event_name` = 'Women''s Soccer' AND `T3`.`t_shirt_size` = 'Medium'"
+    },
+    {
+      "sql_idx": 32,
+      "question_id": 1322,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "Among the events attended by more than 10 members of the Student_Club, how many of them are meetings?",
+      "evidence": "meetings events refers to type = 'Meeting'; attended by more than 10 members refers to COUNT(event_id) > 10",
+      "predicted_sql": "SELECT COUNT(*) AS meeting_events_count FROM ( SELECT e.event_id FROM event e JOIN attendance a ON a.link_to_event = e.event_id JOIN member m ON a.link_to_member = m.member_id WHERE e.type = 'Meeting' AND m.position = 'Student_Club' GROUP BY e.event_id HAVING COUNT(*) > 10 ) AS sub;",
+      "ground_truth_sql": "SELECT   `T1`.`event_name` FROM `event` AS `T1` INNER JOIN `attendance` AS `T2`   ON `T1`.`event_id` = `T2`.`link_to_event` GROUP BY   `T1`.`event_id` HAVING   COUNT(`T2`.`link_to_event`) > 10 EXCEPT SELECT   `T1`.`event_name` FROM `event` AS `T1` WHERE   `T1`.`type` = 'Meeting'"
+    },
+    {
+      "sql_idx": 35,
+      "question_id": 1334,
+      "db_id": "student_club",
+      "difficulty": "simple",
+      "question": "List the full name of the Student_Club members that grew up in Illinois state.",
+      "evidence": "full name of member refers to first_name, last_name",
+      "predicted_sql": "SELECT CONCAT(m.first_name, ' ', m.last_name) AS full_name FROM member AS m JOIN zip_code AS z ON m.zip = z.zip_code WHERE z.state = 'Illinois';",
+      "ground_truth_sql": "SELECT   `T1`.`first_name`,   `T1`.`last_name` FROM `member` AS `T1` INNER JOIN `zip_code` AS `T2`   ON `T1`.`zip` = `T2`.`zip_code` WHERE   `T2`.`state` = 'Illinois'"
+    },
+    {
+      "sql_idx": 36,
+      "question_id": 1338,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "Was each expense in October Meeting on October 8, 2019 approved?",
+      "evidence": "event_name = 'October Meeting' where event_date = '2019-10-08'; approved = True means expenses was approved; approved = False means expenses was not approved",
+      "predicted_sql": "SELECT e.expense_id, e.approved FROM expense e JOIN budget b ON e.link_to_budget = b.budget_id JOIN event ev ON b.link_to_event = ev.event_id WHERE ev.event_name = 'October Meeting' AND ev.event_date = '2019-10-08';",
+      "ground_truth_sql": "SELECT   `T3`.`approved` FROM `event` AS `T1` INNER JOIN `budget` AS `T2`   ON `T1`.`event_id` = `T2`.`link_to_event` INNER JOIN `expense` AS `T3`   ON `T2`.`budget_id` = `T3`.`link_to_budget` WHERE   `T1`.`event_name` = 'October Meeting' AND `T1`.`event_date` LIKE '2019-10-08%'"
+    },
+    {
+      "sql_idx": 38,
+      "question_id": 1340,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "Calculate the difference of the total amount spent in all events by the Student_Club in year 2019 and 2020.",
+      "evidence": "The first 4 strings of the event_date values in the event table can represent year; The difference of the total amount spent = SUBTRACT(spent where YEAR(event_date) = 2019, spent where YEAR(event_date) = 2020)",
+      "predicted_sql": "SELECT SUM(CASE WHEN LEFT(e.event_date, 4) = '2019' THEN b.spent ELSE 0 END) - SUM(CASE WHEN LEFT(e.event_date, 4) = '2020' THEN b.spent ELSE 0 END) AS difference FROM event e JOIN budget b ON e.event_id = b.link_to_event WHERE b.category = 'Student_Club';",
+      "ground_truth_sql": "SELECT   SUM(CASE WHEN SUBSTR(`T1`.`event_date`, 1, 4) = '2019' THEN `T2`.`spent` ELSE 0 END) - SUM(CASE WHEN SUBSTR(`T1`.`event_date`, 1, 4) = '2020' THEN `T2`.`spent` ELSE 0 END) AS `num` FROM `event` AS `T1` INNER JOIN `budget` AS `T2`   ON `T1`.`event_id` = `T2`.`link_to_event`"
+    },
+    {
+      "sql_idx": 46,
+      "question_id": 1359,
+      "db_id": "student_club",
+      "difficulty": "challenging",
+      "question": "How many times was the budget in Advertisement for \"Yearly Kickoff\" meeting more than \"October Meeting\"?",
+      "evidence": "budget in Advertisement refer to category = 'Advertisement' in the budget table; DIVIDE(SUM(amount when event_name = 'Yearly Kickoff'), SUM(amount when event_name = 'October Meeting'))",
+      "predicted_sql": "SELECT SUM(CASE WHEN e.event_name = 'Yearly Kickoff' THEN b.amount ELSE 0 END) / NULLIF(SUM(CASE WHEN e.event_name = 'October Meeting' THEN b.amount ELSE 0 END), 0) AS times_more FROM budget AS b JOIN event AS e ON b.link_to_event = e.event_id WHERE b.category = 'Advertisement';",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `T2`.`event_name` = 'Yearly Kickoff' THEN `T1`.`amount` ELSE 0 END) AS DOUBLE) / SUM(CASE WHEN `T2`.`event_name` = 'October Meeting' THEN `T1`.`amount` ELSE 0 END) FROM `budget` AS `T1` INNER JOIN `event` AS `T2`   ON `T1`.`link_to_event` = `T2`.`event_id` WHERE   `T1`.`category` = 'Advertisement' AND `T2`.`type` = 'Meeting'"
+    },
+    {
+      "sql_idx": 52,
+      "question_id": 1376,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "Among all the closed events, which event has the highest spend-to-budget ratio?",
+      "evidence": "closed events refers to event_name where status = 'Closed'; highest spend-to budget ratio refers to MAX(DIVIDE(spent, amount))",
+      "predicted_sql": "SELECT e.event_name FROM event AS e JOIN budget AS b ON e.event_id = b.link_to_event WHERE e.status = 'Closed' GROUP BY e.event_id, e.event_name ORDER BY (SUM(b.spent) / NULLIF(SUM(b.amount), 0)) DESC LIMIT 1;",
+      "ground_truth_sql": "SELECT   `T2`.`event_name` FROM `budget` AS `T1` INNER JOIN `event` AS `T2`   ON `T1`.`link_to_event` = `T2`.`event_id` WHERE   `T2`.`status` = 'Closed' ORDER BY   `T1`.`spent` / `T1`.`amount` DESC LIMIT 1"
+    },
+    {
+      "sql_idx": 55,
+      "question_id": 1381,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "List the name of students that have attended more than 7 events.",
+      "evidence": "name of students means the full name; full name refers to first_name, last_name; attended more than 7 events refers to COUNT(link_to_event) > 7",
+      "predicted_sql": "SELECT CONCAT(m.first_name, ' ', m.last_name) AS full_name FROM member AS m JOIN attendance AS a ON m.member_id = a.link_to_member GROUP BY m.member_id, m.first_name, m.last_name HAVING COUNT(DISTINCT a.link_to_event) > 7;",
+      "ground_truth_sql": "SELECT   `T1`.`first_name`,   `T1`.`last_name` FROM `member` AS `T1` INNER JOIN `attendance` AS `T2`   ON `T1`.`member_id` = `T2`.`link_to_member` GROUP BY   `T2`.`link_to_member` HAVING   COUNT(`T2`.`link_to_event`) > 7"
+    },
+    {
+      "sql_idx": 57,
+      "question_id": 1389,
+      "db_id": "student_club",
+      "difficulty": "simple",
+      "question": "Which event has the lowest cost?",
+      "evidence": "event refers to event_name; lowest cost means MIN(cost)",
+      "predicted_sql": "SELECT e.event_name FROM expense AS ex JOIN budget AS b ON ex.link_to_budget = b.budget_id JOIN event AS e ON b.link_to_event = e.event_id GROUP BY e.event_id, e.event_name ORDER BY MIN(ex.cost) ASC LIMIT 1;",
+      "ground_truth_sql": "SELECT   `T1`.`event_name` FROM `event` AS `T1` INNER JOIN `budget` AS `T2`   ON `T1`.`event_id` = `T2`.`link_to_event` INNER JOIN `expense` AS `T3`   ON `T2`.`budget_id` = `T3`.`link_to_budget` ORDER BY   `T3`.`cost` LIMIT 1"
+    },
+    {
+      "sql_idx": 59,
+      "question_id": 1392,
+      "db_id": "student_club",
+      "difficulty": "simple",
+      "question": "Indicate the top source of funds received in September 2019 based on their amount.",
+      "evidence": "top source funds refers to MAX(source); September 2019 means date_received BETWEEN '2019-09-01' and '2019-09-30'",
+      "predicted_sql": "SELECT source, SUM(amount) AS total_amount FROM income WHERE date_received BETWEEN '2019-09-01' AND '2019-09-30' GROUP BY source ORDER BY total_amount DESC LIMIT 1;",
+      "ground_truth_sql": "SELECT   `source` FROM `income` WHERE   `date_received` BETWEEN '2019-09-01' AND '2019-09-30' ORDER BY   `source` DESC LIMIT 1"
+    },
+    {
+      "sql_idx": 62,
+      "question_id": 1399,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "Did Maya Mclean attend the 'Women's Soccer' event?",
+      "evidence": "Maya Mclean is the full name; full name refers to first_name, last_name; 'Women's Soccer' is an event_name",
+      "predicted_sql": "SELECT EXISTS ( SELECT 1 FROM member m JOIN attendance a ON m.member_id = a.link_to_member JOIN event e ON e.event_id = a.link_to_event WHERE m.first_name = 'Maya' AND m.last_name = 'Mclean' AND e.event_name = 'Women\\'s Soccer' ) AS attended;",
+      "ground_truth_sql": "SELECT   CASE WHEN `T3`.`event_name` = 'Women''s Soccer' THEN 'YES' END AS `result` FROM `member` AS `T1` INNER JOIN `attendance` AS `T2`   ON `T1`.`member_id` = `T2`.`link_to_member` INNER JOIN `event` AS `T3`   ON `T2`.`link_to_event` = `T3`.`event_id` WHERE   `T1`.`first_name` = 'Maya' AND `T1`.`last_name` = 'Mclean'"
+    },
+    {
+      "sql_idx": 65,
+      "question_id": 1404,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "Identify the type of expenses and their total value approved for 'October Meeting' event.",
+      "evidence": "total value refers to SUM(cost); 'October Meeting' is an event name;",
+      "predicted_sql": "SELECT e.expense_description, SUM(e.cost) AS total_value FROM expense AS e JOIN budget AS b ON e.link_to_budget = b.budget_id JOIN event AS ev ON b.link_to_event = ev.event_id WHERE ev.event_name = 'October Meeting' AND e.approved = 'yes' GROUP BY e.expense_description;",
+      "ground_truth_sql": "SELECT `T1`.`type`, SUM(`T3`.`cost`) AS `total_cost` FROM `event` AS `T1` INNER JOIN `budget` AS `T2` ON `T1`.`event_id` = `T2`.`link_to_event` INNER JOIN `expense` AS `T3` ON `T2`.`budget_id` = `T3`.`link_to_budget` WHERE `T1`.`event_name` = 'October Meeting' GROUP BY `T1`.`type`"
+    },
+    {
+      "sql_idx": 68,
+      "question_id": 1410,
+      "db_id": "student_club",
+      "difficulty": "simple",
+      "question": "List out the full name and total cost that member id \"rec4BLdZHS2Blfp4v\" incurred?",
+      "evidence": "full name refers to first_name, last name",
+      "predicted_sql": "SELECT CONCAT(m.first_name, ' ', m.last_name) AS full_name, SUM(e.cost) AS total_cost FROM member AS m JOIN expense AS e ON m.member_id = e.link_to_member WHERE m.member_id = 'rec4BLdZHS2Blfp4v' GROUP BY m.member_id, m.first_name, m.last_name;",
+      "ground_truth_sql": "SELECT   `T1`.`first_name`,   `T1`.`last_name`,   SUM(`T2`.`cost`) FROM `member` AS `T1` INNER JOIN `expense` AS `T2`   ON `T1`.`member_id` = `T2`.`link_to_member` WHERE   `T1`.`member_id` = 'rec4BLdZHS2Blfp4v'"
+    },
+    {
+      "sql_idx": 72,
+      "question_id": 1427,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "What are the budget category of the events located at MU 215 and a guest speaker type with a 0 budget spent?",
+      "evidence": "budget category refers to category; events located at refers to location; type = 'Guest Speaker'; 0 budget spent refers to spent = 0; ",
+      "predicted_sql": "SELECT b.category FROM event AS e JOIN budget AS b ON e.event_id = b.link_to_event WHERE e.location = 'MU 215' AND e.type = 'Guest Speaker' AND b.spent = 0;",
+      "ground_truth_sql": "SELECT DISTINCT   `T2`.`category`,   `T1`.`type` FROM `event` AS `T1` INNER JOIN `budget` AS `T2`   ON `T1`.`event_id` = `T2`.`link_to_event` WHERE   `T1`.`location` = 'MU 215' AND `T2`.`spent` = 0 AND `T1`.`type` = 'Guest Speaker'"
+    },
+    {
+      "sql_idx": 73,
+      "question_id": 1432,
+      "db_id": "student_club",
+      "difficulty": "moderate",
+      "question": "Among the members with t-shirt size of medium, what is the percentage of the amount 50 received by the Student_Club?",
+      "evidence": "t_shirt_size = 'Medium' where position = 'Member'; percentage = DIVIDE(COUNT(amount = 50), COUNT(member_id)) * 100",
+      "predicted_sql": "SELECT (COUNT(DISTINCT CASE WHEN i.amount = 50 AND i.source = 'Student_Club' THEN m.member_id END) / COUNT(DISTINCT m.member_id)) * 100 AS percentage FROM member AS m LEFT JOIN income AS i ON m.member_id = i.link_to_member WHERE m.t_shirt_size = 'Medium' AND m.position = 'Member';",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `T2`.`amount` = 50 THEN 1.0 ELSE 0 END) AS DOUBLE) * 100 / COUNT(`T2`.`income_id`) FROM `member` AS `T1` INNER JOIN `income` AS `T2`   ON `T1`.`member_id` = `T2`.`link_to_member` WHERE   `T1`.`position` = 'Member' AND `T1`.`t_shirt_size` = 'Medium'"
+    },
+    {
+      "sql_idx": 76,
+      "question_id": 1460,
+      "db_id": "student_club",
+      "difficulty": "challenging",
+      "question": "Write the full name of the member who spent money for water, veggie tray and supplies and include the cost of it.",
+      "evidence": "full name refers to first_name, last name; spent money for refers expense description; expense_description = 'Water, Veggie tray, supplies'",
+      "predicted_sql": "SELECT CONCAT(m.first_name, ' ', m.last_name) AS full_name, e.cost FROM member AS m JOIN expense AS e ON m.member_id = e.link_to_member WHERE e.expense_description = 'Water, Veggie tray, supplies';",
+      "ground_truth_sql": "SELECT   `T2`.`first_name`,   `T2`.`last_name`,   `T1`.`cost` FROM `expense` AS `T1` INNER JOIN `member` AS `T2`   ON `T1`.`link_to_member` = `T2`.`member_id` WHERE   `T1`.`expense_description` = 'Water, Veggie tray, supplies'"
+    },
+    {
+      "sql_idx": 78,
+      "question_id": 1149,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "Are there more in-patient or outpatient who were male? What is the deviation in percentage?",
+      "evidence": "male refers to SEX = 'M'; in-patient refers to Admission = '+'; outpatient refers to Admission = '-'; percentage = DIVIDE(COUNT(ID) where SEX = 'M' and Admission = '+', COUNT(ID) where SEXÂ  = 'M' and Admission = '-')",
+      "predicted_sql": "SELECT SUM(CASE WHEN SEX = 'M' AND Admission = '+' THEN 1 ELSE 0 END) AS male_inpatient, SUM(CASE WHEN SEX = 'M' AND Admission = '-' THEN 1 ELSE 0 END) AS male_outpatient, CASE WHEN SUM(CASE WHEN SEX = 'M' AND Admission = '+' THEN 1 ELSE 0 END) > SUM(CASE WHEN SEX = 'M' AND Admission = '-' THEN 1 ELSE 0 END) THEN 'In-patient' WHEN SUM(CASE WHEN SEX = 'M' AND Admission = '+' THEN 1 ELSE 0 END) < SUM(CASE WHEN SEX = 'M' AND Admission = '-' THEN 1 ELSE 0 END) THEN 'Outpatient' ELSE 'Equal' END AS more_category, (SUM(CASE WHEN SEX = 'M' AND Admission = '+' THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN SEX = 'M' AND Admission = '-' THEN 1 ELSE 0 END), 0)) * 100 AS deviation_percentage FROM patient;",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `Admission` = '+' THEN 1 ELSE 0 END) AS DOUBLE) * 100 / SUM(CASE WHEN `Admission` = '-' THEN 1 ELSE 0 END) FROM `Patient` WHERE   `SEX` = 'M'"
+    },
+    {
+      "sql_idx": 79,
+      "question_id": 1150,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "What is the percentage of female patient were born after 1930?",
+      "evidence": "female refers to Sex = 'F'; patient who were born after 1930 refers to year(Birthday) > '1930'; calculation = DIVIDE(COUNT(ID) where year(Birthday) > '1930' and SEX = 'F'), (COUNT(ID) where SEX = 'F')",
+      "predicted_sql": "SELECT (SUM(CASE WHEN YEAR(Birthday) > 1930 THEN 1 ELSE 0 END) / COUNT(*)) * 100 AS percentage FROM patient WHERE SEX = 'F';",
+      "ground_truth_sql": "SELECT   CAST(SUM(     CASE WHEN DATE_FORMAT(CAST(`Birthday` AS DATETIME), '%Y') > '1930' THEN 1 ELSE 0 END   ) AS DOUBLE) * 100 / COUNT(*) FROM `Patient` WHERE   `SEX` = 'F'"
+    },
+    {
+      "sql_idx": 87,
+      "question_id": 1166,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "simple",
+      "question": "What are the symptoms observed by the youngest patient to ever did a medical examination? Identify their diagnosis.",
+      "evidence": "The larger the birthday value, the younger the person is, and vice versa; symptoms observed refers to the symptoms is not NULL",
+      "predicted_sql": "SELECT e.Symptoms, e.Diagnosis FROM patient p JOIN examination e ON p.ID = e.ID WHERE e.Symptoms IS NOT NULL ORDER BY p.Birthday DESC LIMIT 1;",
+      "ground_truth_sql": "SELECT   `T2`.`Symptoms`,   `T1`.`Diagnosis` FROM `Patient` AS `T1` INNER JOIN `Examination` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   NOT `T2`.`Symptoms` IS NULL ORDER BY   `T1`.`Birthday` DESC LIMIT 1"
+    },
+    {
+      "sql_idx": 88,
+      "question_id": 1168,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "challenging",
+      "question": "The oldest SJS patient's medical laboratory work was completed on what date, and what age was the patient when they initially arrived at the hospital?",
+      "evidence": "The larger the birthday value, the younger the person is, and vice versa; 'SJS' refers to diagnosis; (SUBTRACT(year(`First Date`)), year(Birthday)); age of the patients when they initially arrived at the hospital refers to year(Birthday)",
+      "predicted_sql": "SELECT l.`Date` AS LabDate, YEAR(p.`First Date`) - YEAR(p.Birthday) AS AgeAtArrival FROM patient p JOIN laboratory l ON p.ID = l.ID WHERE p.Diagnosis = 'SJS' AND p.ID = (SELECT ID FROM patient WHERE Diagnosis = 'SJS' ORDER BY Birthday ASC LIMIT 1) ORDER BY l.`Date` ASC LIMIT 1",
+      "ground_truth_sql": "SELECT   `T1`.`Date`,   DATE_FORMAT(CAST(`T2`.`First Date` AS DATETIME), '%Y') - DATE_FORMAT(CAST(`T2`.`Birthday` AS DATETIME), '%Y'),   `T2`.`Birthday` FROM `Laboratory` AS `T1` INNER JOIN `Patient` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T2`.`Diagnosis` = 'SJS' AND NOT `T2`.`Birthday` IS NULL ORDER BY   `T2`.`Birthday` ASC LIMIT 1"
+    },
+    {
+      "sql_idx": 89,
+      "question_id": 1169,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "challenging",
+      "question": "What is the ratio of male to female patients among all those with abnormal uric acid counts?",
+      "evidence": "male refers to SEX = 'M'; female refers to SEX = 'F'; abnormal uric acid refers to UA < = '8.0' where SEX = 'M', UA < = '6.5' where SEX = 'F'; calculation = DIVIDE(SUM(UA <= '8.0' and SEX = 'M'), SUM(UA <= '6.5 and SEX = 'F'))",
+      "predicted_sql": "SELECT SUM(p.SEX = 'M' AND l.UA <= 8.0) / NULLIF(SUM(p.SEX = 'F' AND l.UA <= 6.5), 0) AS male_female_ratio FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID;",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `T2`.`UA` <= 8.0 AND `T1`.`SEX` = 'M' THEN 1 ELSE 0 END) AS DOUBLE) / SUM(CASE WHEN `T2`.`UA` <= 6.5 AND `T1`.`SEX` = 'F' THEN 1 ELSE 0 END) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID`"
+    },
+    {
+      "sql_idx": 91,
+      "question_id": 1175,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "How old was the patient who had the highest hemoglobin count at the time of the examination, and what is the doctor's diagnosis?",
+      "evidence": "How old the patient refers to SUBTRACT(year(`Examination Date`), year(Birthday)); the highest hemoglobin count refers to MAX(HGB)",
+      "predicted_sql": "SELECT YEAR(e.`Examination Date`) - YEAR(p.Birthday) AS Age, e.Diagnosis FROM patient p JOIN laboratory l ON p.ID = l.ID JOIN examination e ON p.ID = e.ID WHERE l.HGB = (SELECT MAX(HGB) FROM laboratory);",
+      "ground_truth_sql": "SELECT   DATE_FORMAT(CAST(`T2`.`Date` AS DATETIME), '%Y') - DATE_FORMAT(CAST(`T1`.`Birthday` AS DATETIME), '%Y'),   `T1`.`Diagnosis` FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` ORDER BY   `T2`.`HGB` DESC LIMIT 1"
+    },
+    {
+      "sql_idx": 92,
+      "question_id": 1179,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "For the patient who was diagnosed with SLE on 1994/2/19, what was his/her anti-Cardiolipin antibody concentration status on 1993/11/12?",
+      "evidence": "diagnosed with SLE refers to Diagnosis = 'SLE'; 1994/2/19 refers to Description = '1994-02-19'; anti-Cardiolipin refers to aCL IgM; 1993/11/12 refers to Examination Date = '1993/11/12'",
+      "predicted_sql": "SELECT e.`aCL IgM` FROM patient AS p JOIN examination AS e ON p.ID = e.ID WHERE p.Diagnosis = 'SLE' AND p.Description = '1994-02-19' AND e.`Examination Date` = '1993-11-12';",
+      "ground_truth_sql": "SELECT   `aCL IgA`,   `aCL IgG`,   `aCL IgM` FROM `Examination` WHERE   `ID` IN (     SELECT       `ID`     FROM `Patient`     WHERE       `Diagnosis` = 'SLE' AND `Description` = '1994-02-19'   )   AND `Examination Date` = '1993-11-12'"
+    },
+    {
+      "sql_idx": 93,
+      "question_id": 1185,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "challenging",
+      "question": "For the patient who was born on 1959/2/18, what is the decrease rate for his/her total cholesterol from November to December in 1981?",
+      "evidence": "born on 1959/2/18 refers to Birthday = '1959-02-18'; calculation = DIVISION(SUBTRACT(SUM(Birthday = '1959-02-18' and Date like '1981-11-%' THEN `T-CHO`), SUM(Birthday = '1959-02-18' and Date like '1981-12-%' THEN `T-CHO`)), SUM(Birthday = '1959-02-18' and Date like '1981-12-%' THEN `T-CHO`))",
+      "predicted_sql": "SELECT (SUM(CASE WHEN l.`Date` LIKE '1981-11-%' THEN l.`T-CHO` END) - SUM(CASE WHEN l.`Date` LIKE '1981-12-%' THEN l.`T-CHO` END)) / NULLIF(SUM(CASE WHEN l.`Date` LIKE '1981-12-%' THEN l.`T-CHO` END), 0) AS decrease_rate FROM patient p JOIN laboratory l ON p.ID = l.ID WHERE p.Birthday = '1959-02-18';",
+      "ground_truth_sql": "SELECT   CAST((     SUM(CASE WHEN `T2`.`Date` LIKE '1981-11-%' THEN `T2`.`T-CHO` ELSE 0 END) - SUM(CASE WHEN `T2`.`Date` LIKE '1981-12-%' THEN `T2`.`T-CHO` ELSE 0 END)   ) AS DOUBLE) / SUM(CASE WHEN `T2`.`Date` LIKE '1981-12-%' THEN `T2`.`T-CHO` ELSE 0 END) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T1`.`Birthday` = '1959-02-18'"
+    },
+    {
+      "sql_idx": 94,
+      "question_id": 1187,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "How many patients who were examined between 1987/7/6 and 1996/1/31 had a GPT level greater than 30 and an ALB level less than 4? List them by their ID.",
+      "evidence": "examined between 1987/7/6 and 1996/1/31 refers to Date BETWEEN '1987-07-06' AND '1996-01-31'; GPT level greater than 30 refers to GPT > 30; ALB level less than 4 ALB < 4",
+      "predicted_sql": "SELECT DISTINCT l.ID, (SELECT COUNT(DISTINCT l2.ID) FROM laboratory l2 WHERE l2.`Date` BETWEEN '1987-07-06' AND '1996-01-31' AND l2.GPT > 30 AND l2.ALB < 4) AS patient_count FROM laboratory AS l JOIN patient AS p ON l.ID = p.ID WHERE l.`Date` BETWEEN '1987-07-06' AND '1996-01-31' AND l.GPT > 30 AND l.ALB < 4;",
+      "ground_truth_sql": "SELECT DISTINCT   `ID` FROM `Laboratory` WHERE   `Date` BETWEEN '1987-07-06' AND '1996-01-31' AND `GPT` > 30 AND `ALB` < 4"
+    },
+    {
+      "sql_idx": 100,
+      "question_id": 1205,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "Was the patient with the number 57266's uric acid within a normal range?",
+      "evidence": "uric acid within a normal range refers to UA > 8.0 and SEX = 'M'OR UA > 6.5 and SEX = 'F'",
+      "predicted_sql": "SELECT CASE WHEN (p.SEX = 'M' AND l.UA > 8.0) OR (p.SEX = 'F' AND l.UA > 6.5) THEN 'Yes' ELSE 'No' END AS within_normal_range FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID WHERE p.ID = 57266 LIMIT 1;",
+      "ground_truth_sql": "SELECT   CASE     WHEN (       `T1`.`SEX` = 'F' AND `T2`.`UA` > 6.5     )     OR (       `T1`.`SEX` = 'M' AND `T2`.`UA` > 8.0     )     THEN TRUE     ELSE FALSE   END FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T1`.`ID` = 57266"
+    },
+    {
+      "sql_idx": 104,
+      "question_id": 1225,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "List and group all patients by sex for total bilirubin (T-BIL) level not within the normal range.",
+      "evidence": "total bilirubin (T-BIL) not within normal range refers to T-BIL > = 2.0",
+      "predicted_sql": "SELECT p.SEX, COUNT(DISTINCT p.ID) AS patient_count FROM patient p JOIN laboratory l ON p.ID = l.ID WHERE l.`T-BIL` >= 2.0 GROUP BY p.SEX;",
+      "ground_truth_sql": "SELECT T1.ID, T1.SEX FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T2.`T-BIL` >= 2.0 GROUP BY T1.SEX, T1.ID"
+    },
+    {
+      "sql_idx": 105,
+      "question_id": 1227,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "What is the average age of the male patient with high cholesterol?",
+      "evidence": "average age = DIVIDE(SUM(SUBTRACT(YEAR(NOW()), YEAR(birthday))), COUNT(ID)); male patient refers to sex = 'M'; high cholesterol refers to `T-CHO` > = 250;",
+      "predicted_sql": "SELECT SUM(YEAR(NOW()) - YEAR(sub.Birthday)) / COUNT(sub.ID) AS avg_age FROM ( SELECT DISTINCT p.ID, p.Birthday FROM patient p JOIN laboratory l ON p.ID = l.ID WHERE p.SEX = 'M' AND l.`T-CHO` >= 250 ) AS sub;",
+      "ground_truth_sql": "SELECT AVG(YEAR(CURRENT_DATE) - YEAR(T1.Birthday)) FROM Patient AS T1  INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID  WHERE T2.`T-CHO` >= 250 AND T1.SEX = 'M'"
+    },
+    {
+      "sql_idx": 109,
+      "question_id": 1235,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "What are the patient's diagnosis for those who has lower red blood blood cell? State their ID and age.",
+      "evidence": "patient's diagnosis refers to Diagnosis; lower red blood cell refers to RBC < 3.5; age = SUBTRACT(year(current_timestamp), year(Birthday)); ",
+      "predicted_sql": "SELECT p.ID, p.Diagnosis, (YEAR(CURDATE()) - YEAR(p.Birthday)) AS age FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID WHERE l.RBC < 3.5;",
+      "ground_truth_sql": "SELECT DISTINCT   `T1`.`Diagnosis`,   `T1`.`ID`,   DATE_FORMAT(CAST(CURRENT_TIMESTAMP() AS DATETIME), '%Y') - DATE_FORMAT(CAST(`T1`.`Birthday` AS DATETIME), '%Y') FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T2`.`RBC` < 3.5"
+    },
+    {
+      "sql_idx": 112,
+      "question_id": 1241,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "challenging",
+      "question": "For patients with abnormal platelet level, state the number of patients with lower than normal range. How is it compare to the number of patients with higher than normal range?",
+      "evidence": "abnormal platelet level refers to PLT <= 100 or PLT >= 400; platelet level lower than normal range refers to PLT < 100; calculation = SUBTRACT(SUM(PLT < 100), SUM(PLT > 400)); platelet level higher than normal range refers to PLT > 400;",
+      "predicted_sql": "SELECT COUNT(DISTINCT CASE WHEN l.PLT < 100 THEN p.ID END) AS low_count, COUNT(DISTINCT CASE WHEN l.PLT > 400 THEN p.ID END) AS high_count, COUNT(DISTINCT CASE WHEN l.PLT < 100 THEN p.ID END) - COUNT(DISTINCT CASE WHEN l.PLT > 400 THEN p.ID END) AS diff FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID WHERE l.PLT <= 100 OR l.PLT >= 400;",
+      "ground_truth_sql": "SELECT   SUM(CASE WHEN `T2`.`PLT` <= 100 THEN 1 ELSE 0 END) - SUM(CASE WHEN `T2`.`PLT` >= 400 THEN 1 ELSE 0 END) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID`"
+    },
+    {
+      "sql_idx": 113,
+      "question_id": 1242,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "challenging",
+      "question": "For laboratory examinations take in 1984, list all patients below 50 years old with normal platelet level.",
+      "evidence": "laboratory examinations take in 1984 refers to YEAR(Date) = '1984'; below 50 years old = SUBTRACT(year(current_timestamp), year(Birthday)) < 50; normal platelet level refers to PLT between 100 and 400; ",
+      "predicted_sql": "SELECT DISTINCT p.ID FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID WHERE YEAR(l.Date) = 1984 AND TIMESTAMPDIFF(YEAR, p.Birthday, CURDATE()) < 50 AND l.PLT BETWEEN 100 AND 400;",
+      "ground_truth_sql": "SELECT DISTINCT   `T1`.`ID` FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T2`.`PLT` BETWEEN 100 AND 400   AND DATE_FORMAT(CAST(`T2`.`Date` AS DATETIME), '%Y') - DATE_FORMAT(CAST(`T1`.`Birthday` AS DATETIME), '%Y') < 50   AND DATE_FORMAT(CAST(`T2`.`Date` AS DATETIME), '%Y') = '1984'"
+    },
+    {
+      "sql_idx": 114,
+      "question_id": 1243,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "challenging",
+      "question": "For all patients who are older than 55 years old, what is the percentage of female who has abnormal prothrombin time (PT)?",
+      "evidence": "older than 55 years old = SUBTRACT(year(current_timestamp), year(Birthday)) > 55; abnormal prothrombin time (PT) refers to PT > = 14; percentage = DIVIDE(SUM(PT > = 14 AND SEX = 'F'), SUM(PT > = 14)) * 100; female refers to sex = 'F'; ",
+      "predicted_sql": "SELECT (SUM(l.PT >= 14 AND p.SEX = 'F') / SUM(l.PT >= 14) * 100) AS female_percentage FROM patient p JOIN laboratory l ON p.ID = l.ID WHERE YEAR(CURRENT_TIMESTAMP) - YEAR(p.Birthday) > 55 AND l.PT >= 14;",
+      "ground_truth_sql": "SELECT   CAST(SUM(CASE WHEN `T2`.`PT` >= 14 AND `T1`.`SEX` = 'F' THEN 1 ELSE 0 END) AS DOUBLE) * 100 / COUNT(CASE WHEN `T2`.`PT` >= 14 THEN 1 ELSE 0 END) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   DATE_FORMAT(CAST(CURRENT_TIMESTAMP() AS DATETIME), '%Y') - DATE_FORMAT(CAST(`T1`.`Birthday` AS DATETIME), '%Y') > 55"
+    },
+    {
+      "sql_idx": 115,
+      "question_id": 1247,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "challenging",
+      "question": "Among the male patients who have a normal level of white blood cells, how many of them have an abnormal fibrinogen level?",
+      "evidence": "male patients refers to Sex = 'M'; normal level of white blood cells refers to WBC > 3.5 and WBC <9.0; abnormal fibrinogen level refers to FG < = 150 or FG > = 450; Don't compute repetitive ones.",
+      "predicted_sql": "SELECT COUNT(DISTINCT p.ID) AS cnt FROM patient p JOIN laboratory l ON p.ID = l.ID WHERE p.SEX = 'M' AND l.WBC > 3.5 AND l.WBC < 9.0 AND (l.FG <= 150 OR l.FG >= 450);",
+      "ground_truth_sql": "SELECT   COUNT(DISTINCT `T1`.`ID`) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T2`.`FG` <= 150   OR `T2`.`FG` >= 450   AND `T2`.`WBC` > 3.5   AND `T2`.`WBC` < 9.0   AND `T1`.`SEX` = 'M'"
+    },
+    {
+      "sql_idx": 116,
+      "question_id": 1251,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "simple",
+      "question": "How many patients with an Ig G higher than normal?",
+      "evidence": "Ig G higher than normal refers to IGG >= 2000; Should consider DISTINCT in the final result;",
+      "predicted_sql": "SELECT COUNT(DISTINCT p.ID) AS patient_count FROM patient p JOIN laboratory l ON p.ID = l.ID WHERE l.IGG >= 2000;",
+      "ground_truth_sql": "SELECT   COUNT(DISTINCT `T1`.`ID`) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` INNER JOIN `Examination` AS `T3`   ON `T3`.`ID` = `T2`.`ID` WHERE   `T2`.`IGG` >= 2000"
+    },
+    {
+      "sql_idx": 117,
+      "question_id": 1252,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "Among the patients with a normal Ig G level, how many of them have symptoms?",
+      "evidence": "normal Ig G level refers to IGG > 900 and IGG < 2000; have symptoms refers to Symptoms IS NOT NULL;",
+      "predicted_sql": "SELECT COUNT(DISTINCT lab.ID) AS patient_count FROM laboratory AS lab JOIN examination AS ex ON lab.ID = ex.ID WHERE lab.IGG > 900 AND lab.IGG < 2000 AND ex.Symptoms IS NOT NULL;",
+      "ground_truth_sql": "SELECT   COUNT(`T1`.`ID`) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` INNER JOIN `Examination` AS `T3`   ON `T3`.`ID` = `T2`.`ID` WHERE   `T2`.`IGG` BETWEEN 900 AND 2000 AND NOT `T3`.`Symptoms` IS NULL"
+    },
+    {
+      "sql_idx": 118,
+      "question_id": 1254,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "How many patients with a normal Ig A level came to the hospital after 1990/1/1?",
+      "evidence": "normal Ig A level refers to IGA > 80 AND IGA < 500; came to the hospital after 1990/1/1 refers to YEAR(`First Date`) > = 1990;",
+      "predicted_sql": "SELECT COUNT(DISTINCT p.ID) AS patient_count FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID WHERE l.IGA > 80 AND l.IGA < 500 AND YEAR(p.`First Date`) >= 1990;",
+      "ground_truth_sql": "SELECT   COUNT(`T1`.`ID`) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T2`.`IGA` BETWEEN 80 AND 500   AND DATE_FORMAT(CAST(`T1`.`First Date` AS DATETIME), '%Y') > '1990'"
+    },
+    {
+      "sql_idx": 120,
+      "question_id": 1256,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "How many patients with a abnormal C-reactive protein don't have their data recorded?",
+      "evidence": "abnormal C-reactive protein refers to CRP ='+'; don't have data recorded refers to Description IS NULL;",
+      "predicted_sql": "SELECT COUNT(DISTINCT p.ID) AS patient_count FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID WHERE l.CRP = '+' AND p.Description IS NULL;",
+      "ground_truth_sql": "SELECT COUNT(T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE (T2.CRP = '+' ) AND T1.Description IS NULL;"
+    },
+    {
+      "sql_idx": 122,
+      "question_id": 1265,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "How many patients have a normal level of anti-ribonuclear protein and have been admitted to the hospital?",
+      "evidence": "normal level of anti-ribonuclear protein refers to RNP = '-', '+-'; And'-' means 'negative'; '+-' refers to '0'; admitted to the hospital refers to Admission = '+'; Should consider DISTINCT in the final result;",
+      "predicted_sql": "SELECT COUNT(DISTINCT p.ID) AS patient_count FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID WHERE p.Admission = '+' AND l.RNP IN ('-','+-');",
+      "ground_truth_sql": "SELECT   COUNT(DISTINCT `T1`.`ID`) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T2`.`RNP` = 'negative' OR `T2`.`RNP` = '0' AND `T1`.`Admission` = '+'"
+    },
+    {
+      "sql_idx": 123,
+      "question_id": 1267,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "Among the patients with normal anti-SM, how many of them does not have thrombosis?",
+      "evidence": "normal anti-SM refers to SM IN('-', '+-'); SM = 'negative' means '-'; SM = '0' means '+-'; SM = '1' means '+'; does not have thrombosis refers to Thrombosis = 0;",
+      "predicted_sql": "SELECT COUNT(DISTINCT l.ID) AS patient_count FROM laboratory AS l JOIN examination AS e ON l.ID = e.ID WHERE l.SM IN ('-', '+-') AND e.Thrombosis = 0;",
+      "ground_truth_sql": "SELECT   COUNT(`T1`.`ID`) FROM `Examination` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T2`.`SM` IN ('negative', '0') AND `T1`.`Thrombosis` = 0"
+    },
+    {
+      "sql_idx": 125,
+      "question_id": 1275,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "moderate",
+      "question": "Among the patients who has a normal level of anti-centromere and a normal level of anti-SSB, how many of them are male?",
+      "evidence": "normal level of anti-centromere refers to CENTROMEA IN('-', '+-'); normal level of anti-SSB refers to SSB IN('-', '+-'); male refers to Sex = 'M'; Should consider DISTINCT in the final result;",
+      "predicted_sql": "SELECT COUNT(DISTINCT p.ID) AS male_normal_count FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID WHERE p.SEX = 'M' AND l.CENTROMEA IN ('-', '+-') AND l.SSB IN ('-', '+-');",
+      "ground_truth_sql": "SELECT   COUNT(DISTINCT `T1`.`ID`) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` WHERE   `T2`.`CENTROMEA` IN ('negative', '0')   AND `T2`.`SSB` IN ('negative', '0')   AND `T1`.`SEX` = 'M'"
+    },
+    {
+      "sql_idx": 127,
+      "question_id": 1302,
+      "db_id": "thrombosis_prediction",
+      "difficulty": "challenging",
+      "question": "For the patients with a normal range of creatinine phosphokinase, how many of them have a positive measure of degree of coagulation?",
+      "evidence": "normal range of creatinine phosphokinase refers to CPK < 250; positive measure of degree of coagulation refers to KCT = '+' or RVVT = '+' or LAC = '+' ;",
+      "predicted_sql": "SELECT COUNT(DISTINCT p.ID) AS patient_count FROM patient AS p JOIN laboratory AS l ON p.ID = l.ID JOIN examination AS e ON p.ID = e.ID WHERE l.CPK < 250 AND (e.KCT = '+' OR e.RVVT = '+' OR e.LAC = '+');",
+      "ground_truth_sql": "SELECT   COUNT(`T1`.`ID`) FROM `Patient` AS `T1` INNER JOIN `Laboratory` AS `T2`   ON `T1`.`ID` = `T2`.`ID` INNER JOIN `Examination` AS `T3`   ON `T1`.`ID` = `T3`.`ID` WHERE   `T2`.`CPK` < 250   AND (     `T3`.`KCT` = '+' OR `T3`.`RVVT` = '+' OR `T3`.`LAC` = '+'   )"
+    },
+    {
+      "sql_idx": 130,
+      "question_id": 1029,
+      "db_id": "european_football_2",
+      "difficulty": "moderate",
+      "question": "What are the speed in which attacks are put together of the top 4 teams with the highest build Up Play Speed?",
+      "evidence": "speed in which attacks are put together refers to buildUpPlaySpeed;highest build up play speed refers to MAX(buildUpPlaySpeed)",
+      "predicted_sql": "SELECT t.team_long_name, ta.buildUpPlaySpeed FROM team_attributes AS ta JOIN team AS t ON ta.team_api_id = t.team_api_id ORDER BY ta.buildUpPlaySpeed DESC LIMIT 4;",
+      "ground_truth_sql": "SELECT   `t1`.`buildUpPlaySpeed` FROM `Team_Attributes` AS `t1` INNER JOIN `Team` AS `t2`   ON `t1`.`team_api_id` = `t2`.`team_api_id` ORDER BY   `t1`.`buildUpPlaySpeed` ASC LIMIT 4"
+    },
+    {
+      "sql_idx": 132,
+      "question_id": 1031,
+      "db_id": "european_football_2",
+      "difficulty": "challenging",
+      "question": "At present, calculate for the player's age who have a sprint speed of no less than 97 between 2013 to 2015.",
+      "evidence": "players age at present = SUBTRACT((DATETIME(), birthday)); sprint speed of no less than 97 refers to sprint_speed > = 97; between 2013 to 2015 refers to YEAR(date) > = '2013' AND YEAR(date) < = '2015'; ",
+      "predicted_sql": "SELECT p.player_name, TIMESTAMPDIFF(YEAR, p.birthday, CURDATE()) AS age FROM player AS p JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id WHERE pa.sprint_speed >= 97 AND YEAR(pa.date) BETWEEN 2013 AND 2015 GROUP BY p.player_api_id, p.player_name, p.birthday;",
+      "ground_truth_sql": "SELECT DISTINCT YEAR(CURDATE()) - YEAR(t2.birthday) AS age FROM Player_Attributes AS t1 INNER JOIN Player AS t2 ON t1.player_api_id = t2.player_api_id WHERE YEAR(t1.`date`) BETWEEN 2013 AND 2015 AND t1.sprint_speed >= 97"
+    },
+    {
+      "sql_idx": 136,
+      "question_id": 1037,
+      "db_id": "european_football_2",
+      "difficulty": "challenging",
+      "question": "Calculate the percentage of players who prefer left foot, who were born between 1987 and 1992.",
+      "evidence": "players who prefer left foot refers to preferred_foot = 'left'; percentage of players who prefer left foot = DIVIDE(MULTIPLY((SUM(preferred_foot = 'left'), 100)), COUNT(player_fifa_api_id)); born between 1987 and 1992 refers to YEAR(birthday) BETWEEN '1987' AND '1992';",
+      "predicted_sql": "SELECT (SUM(pa.preferred_foot = 'left') * 100) / COUNT(p.player_fifa_api_id) AS left_foot_percentage FROM player AS p JOIN player_attributes AS pa ON p.player_fifa_api_id = pa.player_fifa_api_id WHERE YEAR(p.birthday) BETWEEN 1987 AND 1992;",
+      "ground_truth_sql": "SELECT   CAST(COUNT(CASE WHEN `t2`.`preferred_foot` = 'left' THEN `t1`.`id` ELSE NULL END) AS DOUBLE) * 100 / COUNT(`t1`.`id`) AS `percent` FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2`   ON `t1`.`player_api_id` = `t2`.`player_api_id` WHERE   SUBSTR(`t1`.`birthday`, 1, 4) BETWEEN '1987' AND '1992'"
+    },
+    {
+      "sql_idx": 137,
+      "question_id": 1039,
+      "db_id": "european_football_2",
+      "difficulty": "simple",
+      "question": "Find the average number of long-shot done by Ahmed Samir Farag.",
+      "evidence": "average number of long shot = DIVIDE(SUM(long_shots), COUNT(player_fifa_api_id));",
+      "predicted_sql": "SELECT SUM(pa.long_shots) / COUNT(pa.player_fifa_api_id) AS avg_long_shots FROM player p JOIN player_attributes pa ON p.player_fifa_api_id = pa.player_fifa_api_id WHERE p.player_name = 'Ahmed Samir Farag';",
+      "ground_truth_sql": "SELECT   CAST(SUM(`t2`.`long_shots`) AS DOUBLE) / COUNT(`t2`.`date`) FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2`   ON `t1`.`player_api_id` = `t2`.`player_api_id` WHERE   `t1`.`player_name` = 'Ahmed Samir Farag'"
+    },
+    {
+      "sql_idx": 142,
+      "question_id": 1057,
+      "db_id": "european_football_2",
+      "difficulty": "moderate",
+      "question": "Calculate the average home team goal in the 2010/2011 season in the country of Poland.",
+      "evidence": "average home team goal = AVG(home_team_goal)= SUM(home_team_goal) / COUNT(DISTINCT Match.id) WHERE name = 'Poland' and season = '2010/2011';",
+      "predicted_sql": "SELECT SUM(m.home_team_goal) / COUNT(DISTINCT m.id) AS avg_home_team_goal FROM `match` AS m JOIN country AS c ON m.country_id = c.id WHERE c.name = 'Poland' AND m.season = '2010/2011';",
+      "ground_truth_sql": "SELECT   CAST(SUM(`t2`.`home_team_goal`) AS DOUBLE) / COUNT(`t2`.`id`) FROM `Country` AS `t1` INNER JOIN `Match` AS `t2`   ON `t1`.`id` = `t2`.`country_id` WHERE   `t1`.`name` = 'Poland' AND `t2`.`season` = '2010/2011'"
+    },
+    {
+      "sql_idx": 143,
+      "question_id": 1058,
+      "db_id": "european_football_2",
+      "difficulty": "challenging",
+      "question": "Who has the highest average finishing rate between the highest and shortest football player?",
+      "evidence": "finishing rate refers to finishing; highest average finishing rate = MAX(AVG(finishing)); highest football player refers to MAX(height); shortest football player refers to MIN(height);",
+      "predicted_sql": "SELECT p.player_name FROM player p JOIN player_attributes pa ON p.player_api_id = pa.player_api_id WHERE p.height BETWEEN (SELECT MIN(height) FROM player) AND (SELECT MAX(height) FROM player) GROUP BY p.player_api_id, p.player_name ORDER BY AVG(pa.finishing) DESC LIMIT 1",
+      "ground_truth_sql": "SELECT `A` FROM (SELECT AVG(`finishing`) AS `result`, 'Max' AS `A` FROM `Player` AS `T1` INNER JOIN `Player_Attributes` AS `T2` ON `T1`.`player_api_id` = `T2`.`player_api_id` WHERE `T1`.`height` = (SELECT MAX(`height`) FROM `Player`) UNION SELECT AVG(`finishing`) AS `result`, 'Min' AS `A` FROM `Player` AS `T1` INNER JOIN `Player_Attributes` AS `T2` ON `T1`.`player_api_id` = `T2`.`player_api_id` WHERE `T1`.`height` = (SELECT MIN(`height`) FROM `Player`)) AS `derived` ORDER BY `result` DESC LIMIT 1"
+    },
+    {
+      "sql_idx": 144,
+      "question_id": 1068,
+      "db_id": "european_football_2",
+      "difficulty": "moderate",
+      "question": "From 2010 to 2015, what was the average overall rating of players who are higher than 170?",
+      "evidence": "from 2010 to 2015 refers to strftime('%Y', date) >= '2010' AND <= '2015'; average overall rating = SUM(t2.overall_rating)/ COUNT(t2.id); higher than 170 refers to Player.height > 170;",
+      "predicted_sql": "SELECT SUM(pa.overall_rating) / COUNT(pa.id) AS average_overall_rating FROM player AS p JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id WHERE p.height > 170 AND YEAR(pa.date) BETWEEN 2010 AND 2015;",
+      "ground_truth_sql": "SELECT   CAST(SUM(`t2`.`overall_rating`) AS DOUBLE) / COUNT(`t2`.`id`) FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2`   ON `t1`.`player_api_id` = `t2`.`player_api_id` WHERE   `t1`.`height` > 170   AND DATE_FORMAT(CAST(`t2`.`date` AS DATETIME), '%Y') >= '2010'   AND DATE_FORMAT(CAST(`t2`.`date` AS DATETIME), '%Y') <= '2015'"
+    },
+    {
+      "sql_idx": 145,
+      "question_id": 1076,
+      "db_id": "european_football_2",
+      "difficulty": "challenging",
+      "question": "What is the difference of the average ball control score between Abdou Diallo and Aaron Appindangoye\n?",
+      "evidence": "difference of the average ball control = SUBTRACT(AVG(ball_control WHERE player_name = 'Abdou Diallo'), AVG(ball_control WHERE player_name = 'Aaron Appindangoye')); AVG(ball_control WHERE player_name = 'XX XX') = SUM(CASE WHEN player_name = 'XX XX' THEN ball_control ELSE 0 END) / COUNT(CASE WHEN player_name = 'XX XX' THEN id ELSE NULL END)",
+      "predicted_sql": "SELECT (SELECT AVG(pa.ball_control) FROM player p JOIN player_attributes pa ON p.player_api_id = pa.player_api_id WHERE p.player_name = 'Abdou Diallo') - (SELECT AVG(pa.ball_control) FROM player p JOIN player_attributes pa ON p.player_api_id = pa.player_api_id WHERE p.player_name = 'Aaron Appindangoye') AS ball_control_difference;",
+      "ground_truth_sql": "SELECT   CAST(SUM(     CASE WHEN `t1`.`player_name` = 'Abdou Diallo' THEN `t2`.`ball_control` ELSE 0 END   ) AS DOUBLE) / COUNT(CASE WHEN `t1`.`player_name` = 'Abdou Diallo' THEN `t2`.`id` ELSE NULL END) - CAST(SUM(     CASE       WHEN `t1`.`player_name` = 'Aaron Appindangoye'       THEN `t2`.`ball_control`       ELSE 0     END   ) AS DOUBLE) / COUNT(CASE WHEN `t1`.`player_name` = 'Aaron Appindangoye' THEN `t2`.`id` ELSE NULL END) FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2`   ON `t1`.`player_api_id` = `t2`.`player_api_id`"
+    },
+    {
+      "sql_idx": 147,
+      "question_id": 1079,
+      "db_id": "european_football_2",
+      "difficulty": "simple",
+      "question": "Which player is the tallest?",
+      "evidence": "tallest player refers to MAX(height);",
+      "predicted_sql": "SELECT player_name, height FROM player WHERE height = (SELECT MAX(height) FROM player);",
+      "ground_truth_sql": "SELECT   `player_name` FROM `Player` ORDER BY   `height` DESC LIMIT 1"
+    },
+    {
+      "sql_idx": 148,
+      "question_id": 1080,
+      "db_id": "european_football_2",
+      "difficulty": "moderate",
+      "question": "Among the players whose preferred foot was the left foot when attacking, how many of them would remain in his position when the team attacked?",
+      "evidence": "preferred foot when attacking was the left refers to preferred_foot = 'left'; players who would remain in his position when the team attacked refers to attacking_work_rate = 'low';",
+      "predicted_sql": "SELECT COUNT(DISTINCT p.id) AS player_count FROM player AS p JOIN player_attributes AS pa ON p.id = pa.id WHERE pa.preferred_foot = 'left' AND pa.attacking_work_rate = 'low';",
+      "ground_truth_sql": "SELECT   COUNT(`player_api_id`) FROM `Player_Attributes` WHERE   `preferred_foot` = 'left' AND `attacking_work_rate` = 'low'"
+    },
+    {
+      "sql_idx": 152,
+      "question_id": 1092,
+      "db_id": "european_football_2",
+      "difficulty": "simple",
+      "question": "Give the name of the league had the most matches in the 2008/2009 season?",
+      "evidence": "league that had the most matches in the 2008/2009 season refers to MAX(league_name WHERE season = '2008/2009');",
+      "predicted_sql": "SELECT l.name FROM `match` AS m JOIN league AS l ON l.id = m.league_id WHERE m.season = '2008/2009' GROUP BY l.name ORDER BY COUNT(*) DESC LIMIT 1;",
+      "ground_truth_sql": "SELECT `t1`.`name` FROM `League` AS `t1`JOIN `Match` AS `t2` ON `t1`.`id` = `t2`.`league_id` WHERE  `t2`.`season` = '2008/2009' GROUP BY  `t1`.`name` HAVING COUNT(`t2`.`id`) = (SELECT MAX(match_count) FROM (SELECT COUNT(`t2`.`id`) AS match_count FROM `Match` AS `t2` WHERE `t2`.`season` = '2008/2009' GROUP BY  `t2`.`league_id`) AS subquery)"
+    },
+    {
+      "sql_idx": 153,
+      "question_id": 1094,
+      "db_id": "european_football_2",
+      "difficulty": "challenging",
+      "question": "How much higher in percentage is Ariel Borysiuk's overall rating than that of Paulin Puel?",
+      "evidence": "how much higher in percentage = MULTIPLY(DIVIDE(SUBTRACT(overall_rating WHERE player_name = 'Ariel Borysiuk', overall_rating WHERE player_name = 'Paulin Puel'), overall_rating WHERE player_name = 'Paulin Puel'), 100);",
+      "predicted_sql": "SELECT ((a.overall_rating - p.overall_rating) / p.overall_rating) * 100 AS percentage_higher FROM ( SELECT pa.overall_rating FROM player pl JOIN player_attributes pa ON pl.player_api_id = pa.player_api_id WHERE pl.player_name = 'Ariel Borysiuk' ) a JOIN ( SELECT pa.overall_rating FROM player pl JOIN player_attributes pa ON pl.player_api_id = pa.player_api_id WHERE pl.player_name = 'Paulin Puel' ) p;",
+      "ground_truth_sql": "SELECT   (     SUM(       CASE         WHEN `t1`.`player_name` = 'Ariel Borysiuk'         THEN `t2`.`overall_rating`         ELSE 0       END     ) * 1.0 - SUM(       CASE WHEN `t1`.`player_name` = 'Paulin Puel' THEN `t2`.`overall_rating` ELSE 0 END     )   ) * 100 / SUM(     CASE WHEN `t1`.`player_name` = 'Paulin Puel' THEN `t2`.`overall_rating` ELSE 0 END   ) FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2`   ON `t1`.`player_api_id` = `t2`.`player_api_id`"
+    },
+    {
+      "sql_idx": 154,
+      "question_id": 1096,
+      "db_id": "european_football_2",
+      "difficulty": "moderate",
+      "question": "Calculate the average overall rating of Pietro Marino.",
+      "evidence": "Pietro Marino refers to player_name = 'Pietro Marino'; average overall rating AVG(T1.overall_rating)",
+      "predicted_sql": "SELECT AVG(pa.overall_rating) AS avg_overall_rating FROM player AS p JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id WHERE p.player_name = 'Pietro Marino';",
+      "ground_truth_sql": "SELECT   CAST(SUM(`t2`.`overall_rating`) AS DOUBLE) / COUNT(`t2`.`id`) FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2`   ON `t1`.`player_api_id` = `t2`.`player_api_id` WHERE   `t1`.`player_name` = 'Pietro Marino'"
+    },
+    {
+      "sql_idx": 159,
+      "question_id": 1107,
+      "db_id": "european_football_2",
+      "difficulty": "moderate",
+      "question": "When was the first time did Kevin Constant have his highest crossing score? Give the date.",
+      "evidence": "Kevin Constant refers to player_name = 'Kevin Constant'; highest crossing score refers to MAX(crossing)",
+      "predicted_sql": "SELECT pa.date FROM player AS p JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id WHERE p.player_name = 'Kevin Constant' AND pa.crossing = ( SELECT MAX(pa2.crossing) FROM player_attributes AS pa2 WHERE pa2.player_api_id = p.player_api_id ) ORDER BY pa.date ASC LIMIT 1;",
+      "ground_truth_sql": "SELECT `date` FROM (SELECT `t2`.`crossing`, `t2`.`date` FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2` ON `t1`.`player_fifa_api_id` = `t2`.`player_fifa_api_id` WHERE `t1`.`player_name` = 'Kevin Constant' ORDER BY `t2`.`crossing` DESC) AS `subquery` ORDER BY `date` DESC LIMIT 1"
+    },
+    {
+      "sql_idx": 162,
+      "question_id": 1114,
+      "db_id": "european_football_2",
+      "difficulty": "challenging",
+      "question": "What was the average overall rating for Marko Arnautovic from 2007/2/22 to 2016/4/21?",
+      "evidence": "average overall rating refers to avg(overall_rating); Marko Arnautovic refers to player_name = 'Marko Arnautovic'; from 2007/2/22 to 2016/4/21 refers to the first 10 characters of date BETWEEN '2007-02-22' and '2016-04-21'",
+      "predicted_sql": "SELECT AVG(pa.overall_rating) AS avg_overall_rating FROM player AS p JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id WHERE p.player_name = 'Marko Arnautovic' AND LEFT(pa.date, 10) BETWEEN '2007-02-22' AND '2016-04-21';",
+      "ground_truth_sql": "SELECT   CAST(SUM(`t2`.`overall_rating`) AS DOUBLE) / COUNT(`t2`.`id`) FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2`   ON `t1`.`player_fifa_api_id` = `t2`.`player_fifa_api_id` WHERE   `t1`.`player_name` = 'Marko Arnautovic'   AND SUBSTR(`t2`.`date`, 1, 10) BETWEEN '2007-02-22' AND '2016-04-21'"
+    },
+    {
+      "sql_idx": 163,
+      "question_id": 1115,
+      "db_id": "european_football_2",
+      "difficulty": "challenging",
+      "question": "What percentage is Landon Donovan's overall rating higher than Jordan Bowery on 2013/7/12?",
+      "evidence": "Landon Donovan's refers to player_name = 'Landon Donovan'; Jordan Bowery refers to player_name = 'Jordan Bowery'; percentage refers to DIVIDE(SUBTRACT(player_name = 'Landon Donovan' overall_rating; player_name = 'Jordan Bowery' overall_rating), player_name = 'Landon Donovan' overall_rating)*100",
+      "predicted_sql": "SELECT ((l.overall_rating - j.overall_rating) / l.overall_rating) * 100 AS percentage FROM (SELECT pa.overall_rating FROM player p JOIN player_attributes pa ON p.player_api_id = pa.player_api_id WHERE p.player_name = 'Landon Donovan' AND pa.date = '2013-07-12') l, (SELECT pa.overall_rating FROM player p JOIN player_attributes pa ON p.player_api_id = pa.player_api_id WHERE p.player_name = 'Jordan Bowery' AND pa.date = '2013-07-12') j;",
+      "ground_truth_sql": "SELECT   (     SUM(       CASE         WHEN `t1`.`player_name` = 'Landon Donovan'         THEN `t2`.`overall_rating`         ELSE 0       END     ) * 1.0 - SUM(       CASE WHEN `t1`.`player_name` = 'Jordan Bowery' THEN `t2`.`overall_rating` ELSE 0 END     )   ) * 100 / SUM(     CASE       WHEN `t1`.`player_name` = 'Landon Donovan'       THEN `t2`.`overall_rating`       ELSE 0     END   ) AS `LvsJ_percent` FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2`   ON `t1`.`player_fifa_api_id` = `t2`.`player_fifa_api_id` WHERE   SUBSTR(`t2`.`date`, 1, 10) = '2013-07-12'"
+    },
+    {
+      "sql_idx": 169,
+      "question_id": 1134,
+      "db_id": "european_football_2",
+      "difficulty": "simple",
+      "question": "What is the difference between players 6 and 23's jumping scores?",
+      "evidence": "difference between players 6 and 23's jumping scores refers to SUBTRACT(jumping AND id = 6,jumping AND id = 23)",
+      "predicted_sql": "SELECT pa1.jumping - pa2.jumping AS jumping_difference FROM player p1 JOIN player_attributes pa1 ON p1.player_api_id = pa1.player_api_id JOIN player p2 ON p2.id = 23 JOIN player_attributes pa2 ON p2.player_api_id = pa2.player_api_id WHERE p1.id = 6;",
+      "ground_truth_sql": "SELECT   SUM(CASE WHEN `t1`.`id` = 6 THEN `t1`.`jumping` ELSE 0 END) - SUM(CASE WHEN `t1`.`id` = 23 THEN `t1`.`jumping` ELSE 0 END) FROM `Player_Attributes` AS `t1`"
+    },
+    {
+      "sql_idx": 170,
+      "question_id": 1135,
+      "db_id": "european_football_2",
+      "difficulty": "moderate",
+      "question": "Please provide top four football players' IDs who are among the lowest potential players and prefer to use the right foot when attacking.",
+      "evidence": "lowest potential players refers to MIN(potential); prefer to use the right foot when attacking refers to preferred_foot = 'right'",
+      "predicted_sql": "SELECT p.id FROM player AS p JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id WHERE pa.preferred_foot = 'right' ORDER BY pa.potential ASC LIMIT 4;",
+      "ground_truth_sql": "SELECT   `id` FROM `Player_Attributes` WHERE   `preferred_foot` = 'right' ORDER BY   `potential` ASC LIMIT 4"
+    },
+    {
+      "sql_idx": 171,
+      "question_id": 1136,
+      "db_id": "european_football_2",
+      "difficulty": "moderate",
+      "question": "How many players had the highest potential score for crossing that preferred to use their left foots while attacking?",
+      "evidence": "highest potential score for crossing refers to MAX(crossing); preferred to use their left foots while attacking refers to preferred_foot = 'left'",
+      "predicted_sql": "SELECT COUNT(DISTINCT pa.player_api_id) AS num_players FROM player_attributes pa WHERE pa.preferred_foot = 'left' AND pa.crossing = ( SELECT MAX(crossing) FROM player_attributes WHERE preferred_foot = 'left' );",
+      "ground_truth_sql": "SELECT   COUNT(`t1`.`id`) FROM `Player_Attributes` AS `t1` WHERE   `t1`.`preferred_foot` = 'left'   AND `t1`.`crossing` = (     SELECT       MAX(`crossing`)     FROM `Player_Attributes`   )"
+    },
+    {
+      "sql_idx": 174,
+      "question_id": 1144,
+      "db_id": "european_football_2",
+      "difficulty": "simple",
+      "question": "Please state the finishing rate and curve score of the player who has the heaviest weight.",
+      "evidence": "finishing rate refer to finishing; curve score refer to curve; heaviest weight refers to MAX(weight)",
+      "predicted_sql": "SELECT pa.finishing, pa.curve FROM player p JOIN player_attributes pa ON p.player_api_id = pa.player_api_id WHERE p.weight = (SELECT MAX(weight) FROM player);",
+      "ground_truth_sql": "SELECT   `id`,   `finishing`,   `curve` FROM `Player_Attributes` WHERE   `player_api_id` = (     SELECT       `player_api_id`     FROM `Player`     ORDER BY       `weight` DESC     LIMIT 1   ) LIMIT 1"
+    },
+    {
+      "sql_idx": 175,
+      "question_id": 1145,
+      "db_id": "european_football_2",
+      "difficulty": "simple",
+      "question": "Which top 4 leagues had the most games in the 2015-2016 season?",
+      "evidence": "in the 2015-2016 season refers to season = '2015/2016'; league with most games refers to League.name where MAX(COUNT(id)); ",
+      "predicted_sql": "SELECT l.name, COUNT(m.id) AS game_count FROM league AS l JOIN `match` AS m ON l.id = m.league_id WHERE m.season = '2015/2016' GROUP BY l.id, l.name ORDER BY game_count DESC LIMIT 4;",
+      "ground_truth_sql": "SELECT   `t1`.`name` FROM `League` AS `t1` INNER JOIN `Match` AS `t2`   ON `t1`.`id` = `t2`.`league_id` WHERE   `t2`.`season` = '2015/2016' GROUP BY   `t1`.`name` ORDER BY   COUNT(`t2`.`id`) DESC LIMIT 4"
+    },
+    {
+      "sql_idx": 178,
+      "question_id": 1148,
+      "db_id": "european_football_2",
+      "difficulty": "moderate",
+      "question": "What is the percentage of players that are under 180 cm who have an overall strength of more than 70?",
+      "evidence": "percentage refers to DIVIDE(COUNT(height < 180 AND overall_rating > 70),COUNT(id)) * 100",
+      "predicted_sql": "SELECT (COUNT(DISTINCT CASE WHEN p.height < 180 AND pa.overall_rating > 70 THEN p.id END) / COUNT(DISTINCT p.id) * 100) AS percentage FROM player AS p JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id;",
+      "ground_truth_sql": "SELECT   CAST(COUNT(CASE WHEN `t2`.`overall_rating` > 70 AND `t1`.`height` < 180 THEN `t1`.`id` ELSE NULL END) AS DOUBLE) * 100 / COUNT(`t1`.`id`) AS `percent` FROM `Player` AS `t1` INNER JOIN `Player_Attributes` AS `t2`   ON `t1`.`player_api_id` = `t2`.`player_api_id`"
+    },
+    {
+      "sql_idx": 180,
+      "question_id": 847,
+      "db_id": "formula_1",
+      "difficulty": "simple",
+      "question": "What is the surname of the driver with the best lap time in race number 19 in the second qualifying period?",
+      "evidence": "race number refers to raceId; second qualifying period refers to q2; best lap time refers to MIN(q2);",
+      "predicted_sql": "SELECT d.surname FROM qualifying q JOIN drivers d ON q.driverId = d.driverId WHERE q.raceId = 19 AND q.q2 = (SELECT MIN(q2) FROM qualifying WHERE raceId = 19);",
+      "ground_truth_sql": "SELECT   `T2`.`surname` FROM `qualifying` AS `T1` INNER JOIN `drivers` AS `T2`   ON `T2`.`driverId` = `T1`.`driverId` WHERE   `T1`.`raceId` = 19 ORDER BY   `T1`.`q2` ASC LIMIT 1"
+    },
+    {
+      "sql_idx": 187,
+      "question_id": 865,
+      "db_id": "formula_1",
+      "difficulty": "moderate",
+      "question": "For all the drivers who finished the game in race No. 592, who is the oldest?",
+      "evidence": "drivers who finished the race refers to time is not empty (i.e. time IS NOT NULL); race number refers to raceId; date of birth refers to drivers.dob; The larger the birthday value, the younger the person is, and vice versa;",
+      "predicted_sql": "SELECT d.forename, d.surname, d.dob FROM results AS r JOIN drivers AS d ON d.driverId = r.driverId WHERE r.raceId = 592 AND r.time IS NOT NULL ORDER BY d.dob ASC LIMIT 1;",
+      "ground_truth_sql": "SELECT   `T1`.`forename`,   `T1`.`surname` FROM `drivers` AS `T1` INNER JOIN `results` AS `T2`   ON `T2`.`driverId` = `T1`.`driverId` WHERE   `T2`.`raceId` = 592 AND NOT `T2`.`time` IS NULL AND NOT `T1`.`dob` IS NULL ORDER BY   `T1`.`dob` ASC LIMIT 1"
+    },
+    {
+      "sql_idx": 193,
+      "question_id": 877,
+      "db_id": "formula_1",
+      "difficulty": "moderate",
+      "question": "For all the drivers who finished the game in race No. 872, who is the youngest?",
+      "evidence": "race number refers to raceId; drivers who finished the race refers to time has value; the youngest is a driver where MAX(dob);",
+      "predicted_sql": "SELECT d.forename, d.surname, d.dob FROM drivers AS d JOIN results AS r ON d.driverId = r.driverId WHERE r.raceId = 872 AND r.time IS NOT NULL ORDER BY d.dob DESC LIMIT 1;",
+      "ground_truth_sql": "SELECT   `T1`.`forename`,   `T1`.`surname` FROM `drivers` AS `T1` INNER JOIN `results` AS `T2`   ON `T2`.`driverId` = `T1`.`driverId` WHERE   `T2`.`raceId` = 872 AND NOT `T2`.`time` IS NULL ORDER BY   `T1`.`dob` DESC LIMIT 1"
+    },
+    {
+      "sql_idx": 196,
+      "question_id": 881,
+      "db_id": "formula_1",
+      "difficulty": "moderate",
+      "question": "For the drivers who took part in the race in 1983/7/16, what's their race completion rate?",
+      "evidence": "DIVIDE(COUNT(driverid when time has value ), (COUNT(driverid )) as percentage; in 1983/7/16 refers to when date = '1983-07-16'",
+      "predicted_sql": "SELECT (SUM(CASE WHEN r.time IS NOT NULL THEN 1 ELSE 0 END) / COUNT(r.driverId)) * 100 AS completion_rate_percentage FROM results AS r JOIN races AS ra ON r.raceId = ra.raceId WHERE ra.date = '1983-07-16';",
+      "ground_truth_sql": "SELECT   CAST(COUNT(CASE WHEN NOT `T2`.`time` IS NULL THEN `T2`.`driverId` END) AS DOUBLE) * 100 / COUNT(`T2`.`driverId`) FROM `races` AS `T1` INNER JOIN `results` AS `T2`   ON `T2`.`raceId` = `T1`.`raceId` WHERE   `T1`.`date` = '1983-07-16'"
+    },
+    {
+      "sql_idx": 199,
+      "question_id": 894,
+      "db_id": "formula_1",
+      "difficulty": "moderate",
+      "question": "What is the best lap time recorded? List the driver and race with such recorded lap time.",
+      "evidence": "the best lap time refers to min(milliseconds); List the driver refers to drivers.forename and drivers.surname; List the race refers to races.name",
+      "predicted_sql": "SELECT d.forename, d.surname, r.name, lt.milliseconds FROM laptimes lt JOIN drivers d ON lt.driverId = d.driverId JOIN races r ON lt.raceId = r.raceId WHERE lt.milliseconds = (SELECT MIN(milliseconds) FROM laptimes);",
+      "ground_truth_sql": "SELECT   `T2`.`milliseconds`,   `T1`.`forename`,   `T1`.`surname`,   `T3`.`name` FROM `drivers` AS `T1` INNER JOIN `lapTimes` AS `T2`   ON `T1`.`driverId` = `T2`.`driverId` INNER JOIN `races` AS `T3`   ON `T2`.`raceId` = `T3`.`raceId` ORDER BY   `T2`.`milliseconds` ASC LIMIT 1"
+    }
+  ]
+}
