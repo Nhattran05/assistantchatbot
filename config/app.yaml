@@ -4,33 +4,37 @@ app:
   log_level: "INFO"
 
 llm:
-  default_provider: "mega_llm"
-  default_model: "openai-gpt-oss-120b"
+  default_provider: "google"
+  default_model: "gemma-4-31b-it"
   providers:
     mega_llm:
       model: "openai-gpt-oss-120b"
       base_url: "https://ai.megallm.io/v1"
       temperature: 0.2
+    google:
+      model: "gemma-4-31b-it"
+      temperature: 0.2
 
 agents:
   guardrail:
-    llm_provider: "mega_llm"
+    llm_provider: "google"
+    llm_model: "gemma-4-31b-it"
     auto_limit: 100
     # Future schema guardrail settings (leave empty until schema is ready):
     # blocked_tables: []
     # blocked_columns: []
     # require_tenant_isolation: false
   schema_linking_agent:
-    llm_provider: "mega_llm"
-    llm_model: "openai-gpt-oss-120b"
+    llm_provider: "google"
+    llm_model: "gemma-4-31b-it"
     tools: []
   sql_gen_agent:
-    llm_provider: "mega_llm"
-    llm_model: "openai-gpt-oss-120b"
+    llm_provider: "google"
+    llm_model: "gemma-4-31b-it"
     max_retries: 2
   reflection_agent:
-    llm_provider: "mega_llm"
-    llm_model: "openai-gpt-oss-120b"
+    llm_provider: "google"
+    llm_model: "gemma-4-31b-it"
     tools: []
 
 workflows:
