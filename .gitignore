@@ -68,3 +68,5 @@ logs/
 eval_results/
 run_eval.py
 batch_evaluate.py
+
+.github
