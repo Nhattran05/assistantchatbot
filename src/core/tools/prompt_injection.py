@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
 
 from src.core.prompts.factory import PromptFactory
@@ -44,6 +45,7 @@ class InjectionScanResult(BaseModel):
 async def scan_prompt_injection(
     nl_input: str,
     llm: BaseChatModel,
+    config: RunnableConfig | None = None,
 ) -> InjectionScanResult:
     """
     Use *llm* to classify whether *nl_input* is a prompt-injection attempt.
@@ -51,4 +53,4 @@ async def scan_prompt_injection(
     Returns an ``InjectionScanResult``.
     """
     chain = _PROMPT | llm.with_structured_output(InjectionScanResult)
-    return await chain.ainvoke({"nl_input": nl_input})
+    return await chain.ainvoke({"nl_input": nl_input}, config=config)

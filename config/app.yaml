@@ -3,6 +3,15 @@ app:
   version: "0.1.0"
   log_level: "INFO"
 
+observability:
+  langfuse:
+    enabled: true
+    host_env: "LANGFUSE_HOST"
+    public_key_env: "LANGFUSE_PUBLIC_KEY"
+    secret_key_env: "LANGFUSE_SECRET_KEY"
+    environment_env: "LANGFUSE_ENV"
+    sample_rate: 1.0
+
 llm:
   default_provider: "google"
   default_model: "gemma-4-31b-it"

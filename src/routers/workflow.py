@@ -20,6 +20,13 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from src.core.observability import (
+    build_workflow_trace_metadata,
+    flush_langfuse,
+    get_langfuse_callbacks,
+    new_trace_id,
+    start_observation,
+)
 from src.core.workflows.factory import WorkflowFactory
 
 router = APIRouter(prefix="/workflow", tags=["Workflow"])
@@ -65,14 +72,48 @@ async def run_workflow(body: WorkflowRequest, request: Request) -> WorkflowRespo
     if db is None:
         raise HTTPException(status_code=500, detail="Database not initialized on startup")
 
+    workflow_name = "nlq"
+    trace_id = new_trace_id()
+    trace_metadata = build_workflow_trace_metadata(
+        nl_input=body.nl_input,
+        workflow_name=workflow_name,
+        route_path=request.url.path,
+        request_method=request.method,
+        db_type=type(db).__name__,
+        trace_id=trace_id,
+    )
+    invoke_config: dict = {
+        "configurable": {
+            "db": db,
+            "trace_id": trace_id,
+            "trace_metadata": trace_metadata,
+            "workflow_name": workflow_name,
+        },
+        "metadata": {
+            "workflow_name": workflow_name,
+            "langfuse_session_id": trace_id,
+            "langfuse_tags": [f"workflow:{workflow_name}", "endpoint:/workflow"],
+        },
+    }
+    callbacks = get_langfuse_callbacks()
+    if callbacks:
+        invoke_config["callbacks"] = callbacks
+
     try:
-        workflow = WorkflowFactory.create("nlq")
-        state = await workflow.ainvoke(
-            {"nl_input": body.nl_input},
-            config={"configurable": {"db": db}},
-        )
+        workflow = WorkflowFactory.create(workflow_name)
+        with start_observation(
+            "workflow.run",
+            input_data={"nl_input": body.nl_input},
+            metadata=trace_metadata,
+        ):
+            state = await workflow.ainvoke(
+                {"nl_input": body.nl_input},
+                config=invoke_config,
+            )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    finally:
+        flush_langfuse()
 
     guardrail = GuardrailResult(
         verdict=state.get("guardrail_verdict", "PASS"),
@@ -93,5 +134,5 @@ async def run_workflow(body: WorkflowRequest, request: Request) -> WorkflowRespo
         sql_result=state.get("sql_result") or None,
         sql_error_message=state.get("sql_error_message") or None,
         reflection=state.get("reflection"),
-        reflection_raw=state.get("reflection_raw")
+        reflection_raw=state.get("reflection_raw"),
     )

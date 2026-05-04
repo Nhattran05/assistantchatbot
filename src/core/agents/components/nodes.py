@@ -13,6 +13,7 @@ from collections.abc import Callable
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
+from src.core.observability import build_langchain_invoke_config
 from src.core.agents.components.states import AgentState, GuardrailState, SqlGenState
 
 
@@ -25,7 +26,7 @@ def _get_max_retries_llm() -> int:
     return load_config().get("agents", {}).get("llm_agent", {}).get("max_retries", 2)
 
 def node_call_llm(llm_with_tools: BaseChatModel) -> Callable[[AgentState], dict]:
-    async def _node(state: AgentState) -> dict:
+    async def _node(state: AgentState, config: RunnableConfig) -> dict:
         max_retries = _get_max_retries_llm()
         retry_count = state.get("retry_count", 0)
         if retry_count >= max_retries:
@@ -34,7 +35,11 @@ def node_call_llm(llm_with_tools: BaseChatModel) -> Callable[[AgentState], dict]
                 "error_message": f"Đã vượt quá số lần thử ({max_retries})"
             }
         try:
-            response = await llm_with_tools.ainvoke(state["messages"])
+            invoke_config = build_langchain_invoke_config(
+                config,
+                extra_metadata={"agent_node": "call_llm"},
+            )
+            response = await llm_with_tools.ainvoke(state["messages"], config=invoke_config)
             return {"messages": [response], "retry_count": 0, "status": "running"}
         except Exception as exc:
             return {
@@ -84,10 +89,18 @@ def node_guardrail_scan_nl(llm: BaseChatModel) -> Callable[[GuardrailState], dic
     HIGH / MEDIUM / LOW confidence  →  HARD_BLOCK
     """
 
-    async def _node(state: GuardrailState) -> dict:
+    async def _node(state: GuardrailState, config: RunnableConfig) -> dict:
         from src.core.tools.prompt_injection import scan_prompt_injection  # noqa: PLC0415
 
-        result = await scan_prompt_injection(state["nl_input"], llm)
+        invoke_config = build_langchain_invoke_config(
+            config,
+            extra_metadata={"agent_node": "guardrail_scan"},
+        )
+        result = await scan_prompt_injection(
+            state["nl_input"],
+            llm,
+            config=invoke_config,
+        )
 
         if result.is_injection and result.confidence in ("HIGH", "MEDIUM", "LOW"):
             block_reason = f"[PromptInjection/{result.confidence}] {result.reason}"
@@ -129,16 +142,16 @@ def node_sql_gen_generate(llm: BaseChatModel) -> Callable[[SqlGenState], dict]:
     On the first attempt ``retry_context`` is empty.
     On retries the previous SQL and error are included so the LLM can self-correct.
     """
-    import re  
+    import re
 
-    from langchain_core.messages import HumanMessage, SystemMessage 
+    from langchain_core.messages import HumanMessage, SystemMessage
 
-    from src.core.prompts.factory import PROMPTS_DIR, PromptFactory 
+    from src.core.prompts.factory import PROMPTS_DIR, PromptFactory
 
     system_text = PromptFactory.render("sql_gen_system")
     raw_human = (PROMPTS_DIR / "sql_gen_human.md").read_text(encoding="utf-8")
 
-    async def _node(state: SqlGenState) -> dict:
+    async def _node(state: SqlGenState, config: RunnableConfig) -> dict:
         retry_context = ""
         if state.get("sql_error"):
             retry_context = (
@@ -155,10 +168,27 @@ def node_sql_gen_generate(llm: BaseChatModel) -> Callable[[SqlGenState], dict]:
             .replace("{{retry_context}}", retry_context)
         )
 
-        response = await llm.ainvoke(
-            [SystemMessage(content=system_text), HumanMessage(content=human_text)]
+        invoke_config = build_langchain_invoke_config(
+            config,
+            extra_metadata={"agent_node": "sql_gen_generate"},
         )
-        sql = response.content.strip()
+        response = await llm.ainvoke(
+            [SystemMessage(content=system_text), HumanMessage(content=human_text)],
+            config=invoke_config,
+        )
+        content = response.content
+        if isinstance(content, str):
+            sql = content.strip()
+        elif isinstance(content, list):
+            text_parts: list[str] = []
+            for item in content:
+                if isinstance(item, dict):
+                    text = item.get("text")
+                    if isinstance(text, str):
+                        text_parts.append(text)
+            sql = "\n".join(text_parts).strip() if text_parts else str(content).strip()
+        else:
+            sql = str(content).strip()
         # Strip markdown code fences if the model wraps the output
         sql = re.sub(r"^```(?:sql)?\s*\n?", "", sql, flags=re.IGNORECASE)
         sql = re.sub(r"\n?```\s*$", "", sql).strip()

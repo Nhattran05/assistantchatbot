@@ -43,6 +43,27 @@ API docs:
 curl -X POST "http://127.0.0.1:8000/workflow" -H "Content-Type: application/json" -d "{\"nl_input\":\"Show 5 customers\"}"
 ```
 
+## Langfuse tracing
+
+Tracing is configured in `config/app.yaml`:
+
+```yaml
+observability:
+  langfuse:
+    enabled: true
+```
+
+Set credentials in `.env`:
+
+```bash
+LANGFUSE_PUBLIC_KEY=...
+LANGFUSE_SECRET_KEY=...
+LANGFUSE_HOST=https://cloud.langfuse.com
+LANGFUSE_ENV=development
+```
+
+Current scope traces the full `/workflow` request and all NLQ workflow steps.
+
 ## Evaluation commands
 
 Run one Mini-Dev item:
